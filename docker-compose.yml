@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # MySQL 데이터베이스
+  db:
+    image: mysql:8.0
+    container_name: asset-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: asset_management
+      MYSQL_USER: ${DB_USER:-asset_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-asset_password}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/config/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  # 백엔드 API 서버
+  backend:
+    build: ./backend
+    container_name: asset-api
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+      DB_USER: ${DB_USER:-asset_user}
+      DB_PASSWORD: ${DB_PASSWORD:-asset_password}
+      DB_NAME: asset_management
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret-in-production}
+      FRONTEND_URL: http://localhost:3000
+    depends_on:
+      - db
+
+  # 프론트엔드 (개발 모드)
+  frontend:
+    build: ./frontend
+    container_name: asset-web
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_URL: http://localhost:4000/api
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:

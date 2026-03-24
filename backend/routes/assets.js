@@ -1,0 +1,257 @@
+const express = require('express');
+const router = express.Router();
+const pool = require('../config/database');
+const { authenticate, authorize, isManagerOrAdmin } = require('../middleware/auth');
+
+// 카테고리 목록
+router.get('/categories', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT id, name FROM asset_categories ORDER BY name');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+  }
+});
+
+// 사용자 목록 (role='user'만)
+router.get('/users', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, name, email FROM users WHERE role = 'user' AND is_active = TRUE ORDER BY name"
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+  }
+});
+
+// 부서 목록
+router.get('/departments', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT id, name FROM departments ORDER BY name');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+  }
+});
+
+// 자산 목록 조회 (필터링/검색/페이지네이션)
+router.get('/', authenticate, async (req, res) => {
+  try {
+    const { status, category_id, department_id, search, page = 1, limit = 20 } = req.query;
+    let query = `
+      SELECT a.*, c.name as category_name, d.name as department_name,
+             u.name as assigned_to_name
+      FROM assets a
+      LEFT JOIN asset_categories c ON a.category_id = c.id
+      LEFT JOIN departments d ON a.department_id = d.id
+      LEFT JOIN users u ON a.assigned_to = u.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (status) { query += ' AND a.status = ?'; params.push(status); }
+    if (category_id) { query += ' AND a.category_id = ?'; params.push(category_id); }
+    if (department_id) { query += ' AND a.department_id = ?'; params.push(department_id); }
+    if (search) {
+      query += ' AND (a.name LIKE ? OR a.asset_code LIKE ? OR a.serial_number LIKE ?)';
+      const s = `%${search}%`;
+      params.push(s, s, s);
+    }
+
+    // 일반 사용자: 자기 부서 자산만 조회
+    if (req.user.role === 'user') {
+      query += ' AND a.department_id = ?';
+      params.push(req.user.department_id);
+    }
+    // 부서장: 자기 부서 자산 조회
+    if (req.user.role === 'manager') {
+      query += ' AND a.department_id = ?';
+      params.push(req.user.department_id);
+    }
+
+    // 전체 개수
+    const countQuery = query.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) as total FROM');
+    const [countResult] = await pool.query(countQuery, params);
+    const total = countResult[0].total;
+
+    // 페이지네이션
+    const offset = (page - 1) * limit;
+    query += ' ORDER BY a.updated_at DESC LIMIT ? OFFSET ?';
+    params.push(Number(limit), Number(offset));
+
+    const [assets] = await pool.query(query, params);
+
+    res.json({
+      data: assets,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (err) {
+    console.error('Assets list error:', err);
+    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+  }
+});
+
+// 자산 상세 조회
+router.get('/:id', authenticate, async (req, res) => {
+  try {
+    const [assets] = await pool.query(
+      `SELECT a.*, c.name as category_name, d.name as department_name, u.name as assigned_to_name
+       FROM assets a
+       LEFT JOIN asset_categories c ON a.category_id = c.id
+       LEFT JOIN departments d ON a.department_id = d.id
+       LEFT JOIN users u ON a.assigned_to = u.id
+       WHERE a.id = ?`,
+      [req.params.id]
+    );
+    if (assets.length === 0) return res.status(404).json({ error: '자산을 찾을 수 없습니다.' });
+    res.json(assets[0]);
+  } catch (err) {
+    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+  }
+});
+
+// 자산 등록 (관리자/부서장)
+router.post('/', authenticate, isManagerOrAdmin, async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const {
+      name, category_id, description, serial_number,
+      manufacturer, model, purchase_date, purchase_cost,
+      warranty_expiry, location, department_id, assigned_to, notes
+    } = req.body;
+
+    // 자산 코드 자동 생성: AST-YYYY-NNN (구매일 기준, 없으면 오늘)
+    const baseDate = purchase_date ? new Date(purchase_date) : new Date();
+    const year = baseDate.getFullYear();
+    const prefix = `AST-${year}-`;
+    const [lastRow] = await conn.query(
+      'SELECT asset_code FROM assets WHERE asset_code LIKE ? ORDER BY asset_code DESC LIMIT 1',
+      [`${prefix}%`]
+    );
+    let seq = 1;
+    if (lastRow.length > 0) {
+      const lastSeq = parseInt(lastRow[0].asset_code.split('-')[2], 10);
+      if (!isNaN(lastSeq)) seq = lastSeq + 1;
+    }
+    const asset_code = `${prefix}${String(seq).padStart(3, '0')}`;
+
+    const status = assigned_to ? 'in_use' : 'available';
+    const [result] = await conn.query(
+      `INSERT INTO assets
+       (asset_code, name, category_id, description, serial_number, manufacturer, model,
+        purchase_date, purchase_cost, warranty_expiry, location, department_id, assigned_to, status, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [asset_code, name, category_id, description, serial_number, manufacturer, model,
+       purchase_date, purchase_cost, warranty_expiry, location, department_id, assigned_to || null, status, notes]
+    );
+
+    // 이력 로그
+    await conn.query(
+      'INSERT INTO asset_logs (asset_id, user_id, action, details) VALUES (?, ?, ?, ?)',
+      [result.insertId, req.user.id, 'created', JSON.stringify({ name, asset_code })]
+    );
+
+    await conn.commit();
+    res.status(201).json({ id: result.insertId, message: '자산이 등록되었습니다.' });
+  } catch (err) {
+    await conn.rollback();
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: '중복된 자산 코드입니다.' });
+    }
+    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// 자산 수정 (관리자/부서장)
+router.put('/:id', authenticate, isManagerOrAdmin, async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const fields = req.body;
+    const setClauses = [];
+    const values = [];
+
+    const allowedFields = [
+      'name', 'category_id', 'description', 'serial_number', 'manufacturer',
+      'model', 'purchase_date', 'purchase_cost', 'warranty_expiry',
+      'location', 'status', 'department_id', 'assigned_to', 'notes'
+    ];
+
+    for (const field of allowedFields) {
+      if (fields[field] !== undefined) {
+        setClauses.push(`${field} = ?`);
+        values.push(fields[field]);
+      }
+    }
+
+    if (setClauses.length === 0) {
+      return res.status(400).json({ error: '수정할 항목이 없습니다.' });
+    }
+
+    values.push(req.params.id);
+    await conn.query(`UPDATE assets SET ${setClauses.join(', ')} WHERE id = ?`, values);
+
+    await conn.query(
+      'INSERT INTO asset_logs (asset_id, user_id, action, details) VALUES (?, ?, ?, ?)',
+      [req.params.id, req.user.id, 'updated', JSON.stringify(fields)]
+    );
+
+    await conn.commit();
+    res.json({ message: '자산 정보가 수정되었습니다.' });
+  } catch (err) {
+    await conn.rollback();
+    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// 자산 삭제 (관리자 전용 - 실제로는 disposed 처리)
+router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query("UPDATE assets SET status = 'disposed' WHERE id = ?", [req.params.id]);
+    await conn.query(
+      'INSERT INTO asset_logs (asset_id, user_id, action, details) VALUES (?, ?, ?, ?)',
+      [req.params.id, req.user.id, 'disposed', JSON.stringify({ reason: req.body.reason })]
+    );
+    await conn.commit();
+    res.json({ message: '자산이 폐기 처리되었습니다.' });
+  } catch (err) {
+    await conn.rollback();
+    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// 자산 이력 조회
+router.get('/:id/logs', authenticate, async (req, res) => {
+  try {
+    const [logs] = await pool.query(
+      `SELECT al.*, u.name as user_name
+       FROM asset_logs al
+       LEFT JOIN users u ON al.user_id = u.id
+       WHERE al.asset_id = ?
+       ORDER BY al.created_at DESC`,
+      [req.params.id]
+    );
+    res.json(logs);
+  } catch (err) {
+    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+  }
+});
+
+module.exports = router;
