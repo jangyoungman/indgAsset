@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import AssetList from './pages/AssetList';
 import AssetForm from './pages/AssetForm';
 import AssetDetail from './pages/AssetDetail';
+import AssetBulkUpload from './pages/AssetBulkUpload';
 import UserList from './pages/UserList';
 
 function PrivateRoute({ children, roles }) {
@@ -34,13 +35,14 @@ export default function App() {
               </PrivateRoute>
             } />
             <Route path="assets" element={<AssetList />} />
-            <Route path="assets/:id" element={<AssetDetail />} />
-            <Route path="assets/:id/edit" element={
+            <Route path="assets/new" element={
               <PrivateRoute roles={['admin', 'manager']}>
                 <AssetForm />
               </PrivateRoute>
             } />
-            <Route path="assets/new" element={
+            <Route path="assets/bulk-upload" element={<PrivateRoute roles={['admin']}><AssetBulkUpload /></PrivateRoute>} />
+            <Route path="assets/:id" element={<AssetDetail />} />
+            <Route path="assets/:id/edit" element={
               <PrivateRoute roles={['admin', 'manager']}>
                 <AssetForm />
               </PrivateRoute>
