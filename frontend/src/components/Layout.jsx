@@ -1,10 +1,9 @@
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useCode } from '../contexts/CodeContext';
 import { useLookup } from '../hooks/useLookup';
 import api from '../utils/api';
-
-const ROLE_LABELS = { admin: '관리자', manager: '부서장', user: '사용자' };
 
 // Inline SVG icons (20x20)
 const icons = {
@@ -44,6 +43,12 @@ const icons = {
       <line x1="10" y1="2" x2="10" y2="1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   ),
+  settings: (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10 13C11.6569 13 13 11.6569 13 10C13 8.34315 11.6569 7 10 7C8.34315 7 7 8.34315 7 10C7 11.6569 8.34315 13 10 13Z" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M10 2V4M10 16V18M18 10H16M4 10H2M15.66 4.34L14.24 5.76M5.76 14.24L4.34 15.66M15.66 15.66L14.24 14.24M5.76 5.76L4.34 4.34" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  ),
   chevronLeft: (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -58,6 +63,7 @@ const icons = {
 
 export default function Layout() {
   const { user, logout, isAdmin, isManagerOrAdmin } = useAuth();
+  const { getCodeName } = useCode();
   const { deptName } = useLookup();
   const [unreadCount, setUnreadCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -82,6 +88,7 @@ export default function Layout() {
     { to: '/assets', label: '자산 목록', icon: icons.assets, roles: ['admin', 'manager', 'user'] },
     { to: '/assignments', label: '대여/반납', icon: icons.assignments, roles: ['admin', 'manager', 'user'] },
     { to: '/users', label: '사용자 관리', icon: icons.users, roles: ['admin'] },
+    { to: '/system/codes', label: '공통코드 관리', icon: icons.settings, roles: ['admin'] },
   ];
 
   const isActive = (to) => {
@@ -149,7 +156,7 @@ export default function Layout() {
               <div className="min-w-0">
                 <div className="text-sm font-medium text-white truncate">{user.name}</div>
                 <div className="text-xs text-gray-400 truncate">
-                  {ROLE_LABELS[user.role]}{user.department_id ? ` · ${deptName(user.department_id)}` : ''}
+                  {getCodeName('USER_ROLE', user.role)}{user.department_id ? ` · ${deptName(user.department_id)}` : ''}
                 </div>
               </div>
             </div>
