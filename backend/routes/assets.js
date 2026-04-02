@@ -179,6 +179,8 @@ router.post('/', authenticate, isManagerOrAdmin, async (req, res) => {
 router.post('/bulk', authenticate, authorize('admin'), async (req, res) => {
   const conn = await pool.getConnection();
   try {
+    await conn.beginTransaction();
+
     const { assets } = req.body;
 
     if (!Array.isArray(assets) || assets.length === 0) {
@@ -222,8 +224,10 @@ router.post('/bulk', authenticate, authorize('admin'), async (req, res) => {
       if (!asset.name || !asset.name.trim()) {
         errors.push({ row, field: 'name', message: '자산명은 필수입니다.' });
       }
-      if (!asset.category || !categoryMap.has(asset.category)) {
-        errors.push({ row, field: 'category', message: `존재하지 않는 카테고리: ${asset.category || '(비어있음)'}` });
+      if (!asset.category || !String(asset.category).trim()) {
+        errors.push({ row, field: 'category', message: '카테고리는 필수입니다.' });
+      } else if (!categoryMap.has(asset.category)) {
+        errors.push({ row, field: 'category', message: `존재하지 않는 카테고리: ${asset.category}` });
       }
       if (asset.department && !deptMap.has(asset.department)) {
         errors.push({ row, field: 'department', message: `존재하지 않는 부서: ${asset.department}` });
@@ -247,8 +251,6 @@ router.post('/bulk', authenticate, authorize('admin'), async (req, res) => {
     }
 
     // 트랜잭션으로 일괄 등록
-    await conn.beginTransaction();
-
     const results = [];
 
     for (let i = 0; i < assets.length; i++) {
