@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { CodeProvider } from './contexts/CodeContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -8,6 +9,7 @@ import AssetForm from './pages/AssetForm';
 import AssetDetail from './pages/AssetDetail';
 import AssetBulkUpload from './pages/AssetBulkUpload';
 import UserList from './pages/UserList';
+import CodeManagement from './pages/CodeManagement';
 
 function PrivateRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -20,7 +22,8 @@ function PrivateRoute({ children, roles }) {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <CodeProvider>
+        <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
 
@@ -52,11 +55,17 @@ export default function App() {
                 <UserList />
               </PrivateRoute>
             } />
+            <Route path="system/codes" element={
+              <PrivateRoute roles={['admin']}>
+                <CodeManagement />
+              </PrivateRoute>
+            } />
           </Route>
 
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
-      </BrowserRouter>
+        </BrowserRouter>
+      </CodeProvider>
     </AuthProvider>
   );
 }
