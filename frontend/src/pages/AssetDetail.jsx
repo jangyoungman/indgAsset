@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useLookup } from '../hooks/useLookup';
 
 const STATUS_LABELS = {
   available: '사용 가능',
@@ -29,6 +30,7 @@ export default function AssetDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isManagerOrAdmin } = useAuth();
+  const { userName, deptName } = useLookup();
   const [asset, setAsset] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,8 +54,8 @@ export default function AssetDetail() {
   const info = [
     { label: '자산 코드', value: asset.asset_code, mono: true },
     { label: '카테고리', value: asset.category_name || '-' },
-    { label: '부서', value: asset.department_name || '-' },
-    { label: '사용자', value: asset.assigned_to_name || '-' },
+    { label: '부서', value: deptName(asset.department_id) },
+    { label: '사용자', value: userName(asset.assigned_to) },
     { label: '시리얼 번호', value: asset.serial_number || '-' },
     { label: '제조사', value: asset.manufacturer || '-' },
     { label: '모델명', value: asset.model || '-' },
@@ -130,7 +132,7 @@ export default function AssetDetail() {
                 <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${ACTION_COLORS[log.action] || 'bg-gray-400'}`} />
                 <div className="flex-1 min-w-0">
                   <span className="font-medium text-gray-900">{log.action}</span>
-                  {log.user_name && <span className="text-gray-500"> · {log.user_name}</span>}
+                  {log.user_id && <span className="text-gray-500"> · {userName(log.user_id)}</span>}
                 </div>
                 <span className="text-xs text-gray-400 flex-shrink-0">
                   {new Date(log.created_at).toLocaleString('ko-KR')}

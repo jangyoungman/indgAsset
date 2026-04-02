@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useLookup } from '../hooks/useLookup';
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { userName, deptName } = useLookup();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -78,8 +80,8 @@ export default function Dashboard() {
           <h2 className="text-sm font-semibold text-gray-700 mb-4">부서별 자산</h2>
           <div className="space-y-1">
             {stats.departmentCounts.map(d => (
-              <div key={d.department} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-                <span className="text-sm text-gray-600">{d.department}</span>
+              <div key={d.department_id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                <span className="text-sm text-gray-600">{deptName(d.department_id)}</span>
                 <span className="text-sm font-medium text-gray-900">{d.count}개</span>
               </div>
             ))}
@@ -96,7 +98,7 @@ export default function Dashboard() {
           <div className="space-y-1">
             {stats.overdueAssignments.map(a => (
               <div key={a.id} className="text-sm text-gray-600">
-                {a.asset_name} — {a.user_name} (반납 예정: {a.expected_return})
+                {a.asset_name} — {userName(a.user_id)} (반납 예정: {a.expected_return})
               </div>
             ))}
           </div>

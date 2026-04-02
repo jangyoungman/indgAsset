@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useLookup } from '../hooks/useLookup';
 
 const STATUS_LABELS = {
   available: '사용 가능',
@@ -19,6 +20,7 @@ const STATUS_COLORS = {
 
 export default function AssetList() {
   const { isManagerOrAdmin } = useAuth();
+  const { userName, deptName } = useLookup();
   const [assets, setAssets] = useState([]);
   const [pagination, setPagination] = useState({});
   const [searchInput, setSearchInput] = useState('');
@@ -105,8 +107,8 @@ export default function AssetList() {
                     <td className="px-5 py-3.5 font-mono text-sm text-indigo-600">{a.asset_code}</td>
                     <td className="px-5 py-3.5 text-sm font-medium text-gray-900">{a.name}</td>
                     <td className="px-5 py-3.5 text-sm text-gray-500">{a.category_name}</td>
-                    <td className="px-5 py-3.5 text-sm text-gray-500">{a.department_name}</td>
-                    <td className="px-5 py-3.5 text-sm text-gray-500">{a.assigned_to_name || '-'}</td>
+                    <td className="px-5 py-3.5 text-sm text-gray-500">{deptName(a.department_id)}</td>
+                    <td className="px-5 py-3.5 text-sm text-gray-500">{userName(a.assigned_to)}</td>
                     <td className="px-5 py-3.5">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[a.status]}`}>
                         {STATUS_LABELS[a.status]}

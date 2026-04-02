@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../utils/api';
+import { useLookup } from '../hooks/useLookup';
 
 const ROLE_LABELS = { admin: '관리자', manager: '부서장', user: '사용자' };
 const ROLE_COLORS = {
@@ -9,11 +10,12 @@ const ROLE_COLORS = {
 };
 
 export default function UserList() {
+  const { departments: lookupDepts, deptName } = useLookup();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editUser, setEditUser] = useState(null);
-  const [departments, setDepartments] = useState([]);
+  const departments = lookupDepts;
   const [form, setForm] = useState({ email: '', password: '', name: '', role: 'user', department_id: '', phone: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -25,7 +27,6 @@ export default function UserList() {
 
   useEffect(() => {
     fetchUsers();
-    api.get('/assets/departments').then(res => setDepartments(res.data)).catch(() => {});
   }, []);
 
   const openCreate = () => {
@@ -131,7 +132,7 @@ export default function UserList() {
                       {ROLE_LABELS[u.role]}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 text-sm text-gray-500">{u.department_name || '-'}</td>
+                  <td className="px-5 py-3.5 text-sm text-gray-500">{deptName(u.department_id)}</td>
                   <td className="px-5 py-3.5">
                     {u.login_fail_count >= 5 ? (
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700">잠김</span>

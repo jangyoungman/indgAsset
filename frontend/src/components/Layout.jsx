@@ -1,6 +1,7 @@
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLookup } from '../hooks/useLookup';
 import api from '../utils/api';
 
 const ROLE_LABELS = { admin: '관리자', manager: '부서장', user: '사용자' };
@@ -57,6 +58,7 @@ const icons = {
 
 export default function Layout() {
   const { user, logout, isAdmin, isManagerOrAdmin } = useAuth();
+  const { deptName } = useLookup();
   const [unreadCount, setUnreadCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const navigate = useNavigate();
@@ -147,7 +149,7 @@ export default function Layout() {
               <div className="min-w-0">
                 <div className="text-sm font-medium text-white truncate">{user.name}</div>
                 <div className="text-xs text-gray-400 truncate">
-                  {ROLE_LABELS[user.role]}{user.department_name ? ` · ${user.department_name}` : ''}
+                  {ROLE_LABELS[user.role]}{user.department_id ? ` · ${deptName(user.department_id)}` : ''}
                 </div>
               </div>
             </div>

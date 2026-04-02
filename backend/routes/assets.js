@@ -3,6 +3,8 @@ const router = express.Router();
 const pool = require('../config/database');
 const { authenticate, authorize, isManagerOrAdmin } = require('../middleware/auth');
 
+const AUTH_SERVER_URL = process.env.AUTH_SERVER_URL || 'http://localhost:8090';
+
 // 카테고리 목록
 router.get('/categories', authenticate, async (req, res) => {
   try {
@@ -13,25 +15,31 @@ router.get('/categories', authenticate, async (req, res) => {
   }
 });
 
-// 사용자 목록 (role='user'만)
+// 사용자 목록 → Auth 서버 프록시
 router.get('/users', authenticate, async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      "SELECT id, name, email FROM users WHERE role = 'user' AND is_active = TRUE ORDER BY name"
-    );
-    res.json(rows);
+    const token = req.headers.authorization?.split(' ')[1];
+    const response = await fetch(`${AUTH_SERVER_URL}/api/users`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const users = await response.json();
+    res.status(response.status).json(users);
   } catch (err) {
-    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    res.status(502).json({ error: 'Auth 서버에 연결할 수 없습니다.' });
   }
 });
 
-// 부서 목록
+// 부서 목록 → Auth 서버 프록시
 router.get('/departments', authenticate, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT id, name FROM departments ORDER BY name');
-    res.json(rows);
+    const token = req.headers.authorization?.split(' ')[1];
+    const response = await fetch(`${AUTH_SERVER_URL}/api/departments`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const departments = await response.json();
+    res.status(response.status).json(departments);
   } catch (err) {
-    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    res.status(502).json({ error: 'Auth 서버에 연결할 수 없습니다.' });
   }
 });
 
@@ -40,12 +48,9 @@ router.get('/', authenticate, async (req, res) => {
   try {
     const { status, category_id, department_id, search, page = 1, limit = 20 } = req.query;
     let query = `
-      SELECT a.*, c.name as category_name, d.name as department_name,
-             u.name as assigned_to_name
+      SELECT a.*, c.name as category_name
       FROM assets a
       LEFT JOIN asset_categories c ON a.category_id = c.id
-      LEFT JOIN departments d ON a.department_id = d.id
-      LEFT JOIN users u ON a.assigned_to = u.id
       WHERE 1=1
     `;
     const params = [];
@@ -101,11 +106,9 @@ router.get('/', authenticate, async (req, res) => {
 router.get('/:id', authenticate, async (req, res) => {
   try {
     const [assets] = await pool.query(
-      `SELECT a.*, c.name as category_name, d.name as department_name, u.name as assigned_to_name
+      `SELECT a.*, c.name as category_name
        FROM assets a
        LEFT JOIN asset_categories c ON a.category_id = c.id
-       LEFT JOIN departments d ON a.department_id = d.id
-       LEFT JOIN users u ON a.assigned_to = u.id
        WHERE a.id = ?`,
       [req.params.id]
     );
@@ -241,9 +244,8 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
 router.get('/:id/logs', authenticate, async (req, res) => {
   try {
     const [logs] = await pool.query(
-      `SELECT al.*, u.name as user_name
+      `SELECT al.*
        FROM asset_logs al
-       LEFT JOIN users u ON al.user_id = u.id
        WHERE al.asset_id = ?
        ORDER BY al.created_at DESC`,
       [req.params.id]

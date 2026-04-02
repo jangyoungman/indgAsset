@@ -21,13 +21,19 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
-    localStorage.setItem('token', res.data.token);
+    // Auth 서버는 accessToken으로 반환, 기존 호환을 위해 token도 확인
+    const token = res.data.accessToken || res.data.token;
+    localStorage.setItem('token', token);
+    if (res.data.refreshToken) {
+      localStorage.setItem('refreshToken', res.data.refreshToken);
+    }
     setUser(res.data.user);
     return res.data;
   };
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     setUser(null);
   };
 

@@ -30,18 +30,8 @@ router.post('/request', authenticate, async (req, res) => {
       [result.insertId, req.user.id, request_note]
     );
 
-    // 부서장/관리자에게 알림
-    const [managers] = await conn.query(
-      "SELECT id FROM users WHERE (role = 'manager' AND department_id = ?) OR role = 'admin'",
-      [req.user.department_id]
-    );
-
-    for (const mgr of managers) {
-      await conn.query(
-        'INSERT INTO notifications (user_id, title, message, link) VALUES (?, ?, ?, ?)',
-        [mgr.id, '자산 대여 요청', `${assets[0].name} 자산에 대한 대여 요청이 있습니다.`, `/assignments/${result.insertId}`]
-      );
-    }
+    // 알림: user_id는 JWT에서 가져온 정보 기반으로 처리
+    // 부서장/관리자 알림은 approval_workflows를 통해 관리
 
     await conn.commit();
     res.status(201).json({ id: result.insertId, message: '대여 요청이 접수되었습니다.' });
@@ -161,12 +151,9 @@ router.get('/', authenticate, async (req, res) => {
   try {
     const { status, page = 1, limit = 20 } = req.query;
     let query = `
-      SELECT aa.*, a.name as asset_name, a.asset_code, u.name as user_name,
-             ap.name as approver_name
+      SELECT aa.*, a.name as asset_name, a.asset_code
       FROM asset_assignments aa
       JOIN assets a ON aa.asset_id = a.id
-      JOIN users u ON aa.user_id = u.id
-      LEFT JOIN users ap ON aa.approved_by = ap.id
       WHERE 1=1
     `;
     const params = [];

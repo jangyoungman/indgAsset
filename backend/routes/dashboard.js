@@ -20,12 +20,12 @@ router.get('/stats', authenticate, isManagerOrAdmin, async (req, res) => {
        ORDER BY count DESC`
     );
 
-    // 부서별 자산 수
+    // 부서별 자산 수 (department_id 기준)
     const [departmentCounts] = await pool.query(
-      `SELECT d.name as department, COUNT(a.id) as count
-       FROM departments d
-       LEFT JOIN assets a ON a.department_id = d.id
-       GROUP BY d.id, d.name
+      `SELECT department_id, COUNT(*) as count
+       FROM assets
+       WHERE department_id IS NOT NULL
+       GROUP BY department_id
        ORDER BY count DESC`
     );
 
@@ -41,10 +41,9 @@ router.get('/stats', authenticate, isManagerOrAdmin, async (req, res) => {
 
     // 최근 활동 (최근 10건)
     const [recentLogs] = await pool.query(
-      `SELECT al.*, a.name as asset_name, a.asset_code, u.name as user_name
+      `SELECT al.*, a.name as asset_name, a.asset_code
        FROM asset_logs al
        JOIN assets a ON al.asset_id = a.id
-       LEFT JOIN users u ON al.user_id = u.id
        ORDER BY al.created_at DESC
        LIMIT 10`
     );
@@ -61,10 +60,9 @@ router.get('/stats', authenticate, isManagerOrAdmin, async (req, res) => {
 
     // 연체된 대여 건
     const [overdueAssignments] = await pool.query(
-      `SELECT aa.*, a.name as asset_name, u.name as user_name
+      `SELECT aa.*, a.name as asset_name
        FROM asset_assignments aa
        JOIN assets a ON aa.asset_id = a.id
-       JOIN users u ON aa.user_id = u.id
        WHERE aa.status = 'checked_out'
          AND aa.expected_return < CURDATE()
        ORDER BY aa.expected_return ASC`
