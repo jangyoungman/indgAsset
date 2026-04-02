@@ -187,6 +187,10 @@ router.post('/bulk', authenticate, authorize('admin'), async (req, res) => {
       return res.status(400).json({ success: false, errors: [{ row: 0, field: 'assets', message: '등록할 자산 데이터가 없습니다.' }] });
     }
 
+    if (assets.length > 200) {
+      return res.status(400).json({ success: false, errors: [{ row: 0, field: 'assets', message: '한 번에 최대 200건까지 등록할 수 있습니다.' }] });
+    }
+
     // 카테고리, 부서, 사용자 목록 조회
     const [categories] = await conn.query('SELECT id, name FROM asset_categories');
     const categoryMap = new Map(categories.map(c => [c.name, c.id]));

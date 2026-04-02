@@ -27,6 +27,17 @@ const COLUMN_LABELS = {
 
 const MAC_REGEX = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/;
 
+function formatDate(val) {
+  if (!val) return '';
+  if (val instanceof Date) {
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const d = String(val.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return String(val);
+}
+
 export default function AssetBulkUpload() {
   const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
@@ -41,7 +52,7 @@ export default function AssetBulkUpload() {
     api.get('/assets/categories').then(res => setCategories(res.data)).catch(console.error);
   }, []);
 
-  const validateRow = useCallback((row, sheetName, rowIndex, allRows) => {
+  const validateRow = useCallback((row, sheetName, rowIndex) => {
     const config = SHEET_CONFIGS[sheetName];
     const rowErrors = [];
 
@@ -65,13 +76,6 @@ export default function AssetBulkUpload() {
       rowErrors.push({ sheet: sheetName, row: rowIndex + 1, field: 'purchase_cost', message: '구매가는 숫자여야 합니다.' });
     }
 
-    if (row.serial_number) {
-      const dupes = allRows.filter(r => r.serial_number === row.serial_number);
-      if (dupes.length > 1) {
-        rowErrors.push({ sheet: sheetName, row: rowIndex + 1, field: 'serial_number', message: `엑셀 내 중복 시리얼넘버: ${row.serial_number}` });
-      }
-    }
-
     return rowErrors;
   }, [categories]);
 
@@ -82,10 +86,9 @@ export default function AssetBulkUpload() {
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
       const parsed = {};
       const allErrors = [];
-      const allRows = [];
 
       for (const sheetName of wb.SheetNames) {
         const config = SHEET_CONFIGS[sheetName];
@@ -93,13 +96,32 @@ export default function AssetBulkUpload() {
 
         const sheet = wb.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        // Normalize date fields
+        for (const row of rows) {
+          if (row.purchase_date) row.purchase_date = formatDate(row.purchase_date);
+          if (row.warranty_expiry) row.warranty_expiry = formatDate(row.warranty_expiry);
+        }
         parsed[sheetName] = rows;
-        allRows.push(...rows);
       }
 
       for (const [sheetName, rows] of Object.entries(parsed)) {
         rows.forEach((row, i) => {
-          allErrors.push(...validateRow(row, sheetName, i, allRows));
+          allErrors.push(...validateRow(row, sheetName, i));
+        });
+      }
+
+      // Serial number duplicate check (O(n))
+      const seenSerials = new Map(); // serial -> first occurrence {sheet, row}
+      for (const [sheetName, rows] of Object.entries(parsed)) {
+        rows.forEach((row, i) => {
+          if (row.serial_number) {
+            const key = String(row.serial_number);
+            if (seenSerials.has(key)) {
+              allErrors.push({ sheet: sheetName, row: i + 1, field: 'serial_number', message: `엑셀 내 중복 시리얼넘버: ${row.serial_number}` });
+            } else {
+              seenSerials.set(key, { sheet: sheetName, row: i + 1 });
+            }
+          }
         });
       }
 
