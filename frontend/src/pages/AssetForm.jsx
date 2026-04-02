@@ -8,6 +8,7 @@ const INITIAL = {
   category_id: '',
   description: '',
   serial_number: '',
+  mac_address: '',
   manufacturer: '',
   model: '',
   purchase_date: '',
@@ -50,6 +51,7 @@ export default function AssetForm() {
             category_id: a.category_id || '',
             description: a.description || '',
             serial_number: a.serial_number || '',
+            mac_address: a.mac_address || '',
             manufacturer: a.manufacturer || '',
             model: a.model || '',
             purchase_date: formatDate(a.purchase_date),
@@ -150,11 +152,19 @@ export default function AssetForm() {
           </select>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
             <label className={labelClass}>시리얼 번호</label>
             <input name="serial_number" value={form.serial_number} onChange={handleChange} className={inputClass} />
           </div>
+          <div>
+            <label className={labelClass}>MAC Address</label>
+            <input name="mac_address" value={form.mac_address} onChange={handleChange}
+              placeholder="예: AA:BB:CC:DD:EE:FF" className={inputClass} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
             <label className={labelClass}>제조사</label>
             <input name="manufacturer" value={form.manufacturer} onChange={handleChange} className={inputClass} />

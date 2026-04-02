@@ -126,7 +126,7 @@ router.post('/', authenticate, isManagerOrAdmin, async (req, res) => {
     await conn.beginTransaction();
 
     const {
-      name, category_id, description, serial_number,
+      name, category_id, description, serial_number, mac_address,
       manufacturer, model, purchase_date, purchase_cost,
       warranty_expiry, location, department_id, assigned_to, notes
     } = req.body;
@@ -149,10 +149,10 @@ router.post('/', authenticate, isManagerOrAdmin, async (req, res) => {
     const status = assigned_to ? 'in_use' : 'available';
     const [result] = await conn.query(
       `INSERT INTO assets
-       (asset_code, name, category_id, description, serial_number, manufacturer, model,
+       (asset_code, name, category_id, description, serial_number, mac_address, manufacturer, model,
         purchase_date, purchase_cost, warranty_expiry, location, department_id, assigned_to, status, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [asset_code, name, category_id, description, serial_number, manufacturer, model,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [asset_code, name, category_id, description, serial_number, mac_address, manufacturer, model,
        purchase_date, purchase_cost, warranty_expiry, location, department_id, assigned_to || null, status, notes]
     );
 
@@ -186,7 +186,7 @@ router.put('/:id', authenticate, isManagerOrAdmin, async (req, res) => {
     const values = [];
 
     const allowedFields = [
-      'name', 'category_id', 'description', 'serial_number', 'manufacturer',
+      'name', 'category_id', 'description', 'serial_number', 'mac_address', 'manufacturer',
       'model', 'purchase_date', 'purchase_cost', 'warranty_expiry',
       'location', 'status', 'department_id', 'assigned_to', 'notes'
     ];

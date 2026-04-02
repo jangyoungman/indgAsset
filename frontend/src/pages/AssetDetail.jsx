@@ -57,6 +57,7 @@ export default function AssetDetail() {
     { label: '부서', value: deptName(asset.department_id) },
     { label: '사용자', value: userName(asset.assigned_to) },
     { label: '시리얼 번호', value: asset.serial_number || '-' },
+    { label: 'MAC Address', value: asset.mac_address || '-', mono: true },
     { label: '제조사', value: asset.manufacturer || '-' },
     { label: '모델명', value: asset.model || '-' },
     { label: '위치', value: asset.location || '-' },

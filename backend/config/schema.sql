@@ -56,6 +56,7 @@ CREATE TABLE assets (
   category_id     INT           NULL,
   description     TEXT          NULL,
   serial_number   VARCHAR(100)  NULL,
+  mac_address     VARCHAR(50)   NULL,
   manufacturer    VARCHAR(100)  NULL,
   model           VARCHAR(100)  NULL,
   purchase_date   DATE          NULL,
@@ -154,7 +155,7 @@ INSERT INTO departments (name, code) VALUES
 
 -- 기본 관리자 계정 (비밀번호: admin123 → bcrypt hash)
 INSERT INTO users (email, password_hash, name, role, department_id) VALUES
-  ('admin@company.com', '$2b$10$placeholder_hash_replace_me', '시스템관리자', 'admin', 1);
+  ('admin@indg.co.kr', '$2b$10$placeholder_hash_replace_me', '시스템관리자', 'admin', 1);
 
 INSERT INTO asset_categories (name, description) VALUES
   ('노트북', 'IT 노트북/랩탑'),
