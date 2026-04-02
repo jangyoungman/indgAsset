@@ -175,6 +175,137 @@ router.post('/', authenticate, isManagerOrAdmin, async (req, res) => {
   }
 });
 
+// 자산 일괄 등록 (관리자 전용)
+router.post('/bulk', authenticate, authorize('admin'), async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const { assets } = req.body;
+
+    if (!Array.isArray(assets) || assets.length === 0) {
+      return res.status(400).json({ success: false, errors: [{ row: 0, field: 'assets', message: '등록할 자산 데이터가 없습니다.' }] });
+    }
+
+    // 카테고리, 부서, 사용자 목록 조회
+    const [categories] = await conn.query('SELECT id, name FROM asset_categories');
+    const categoryMap = new Map(categories.map(c => [c.name, c.id]));
+
+    const [departments] = await conn.query('SELECT id, name FROM departments');
+    const deptMap = new Map(departments.map(d => [d.name, d.id]));
+
+    // Auth 서버에서 사용자 목록 가져오기
+    const token = req.headers.authorization?.split(' ')[1];
+    let userMap = new Map();
+    try {
+      const userRes = await fetch(`${AUTH_SERVER_URL}/api/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const users = await userRes.json();
+      if (Array.isArray(users)) {
+        userMap = new Map(users.map(u => [u.name, u.id]));
+      }
+    } catch (e) {
+      // 사용자 목록 조회 실패 시 assigned_to 매핑 불가
+    }
+
+    // 기존 serial_number 목록 조회
+    const [existingSerials] = await conn.query('SELECT serial_number FROM assets WHERE serial_number IS NOT NULL');
+    const existingSerialSet = new Set(existingSerials.map(r => r.serial_number));
+
+    // 2차 검증
+    const errors = [];
+    const newSerials = new Set();
+
+    for (let i = 0; i < assets.length; i++) {
+      const row = i + 1;
+      const asset = assets[i];
+
+      if (!asset.name || !asset.name.trim()) {
+        errors.push({ row, field: 'name', message: '자산명은 필수입니다.' });
+      }
+      if (!asset.category || !categoryMap.has(asset.category)) {
+        errors.push({ row, field: 'category', message: `존재하지 않는 카테고리: ${asset.category || '(비어있음)'}` });
+      }
+      if (asset.department && !deptMap.has(asset.department)) {
+        errors.push({ row, field: 'department', message: `존재하지 않는 부서: ${asset.department}` });
+      }
+      if (asset.assigned_to && !userMap.has(asset.assigned_to)) {
+        errors.push({ row, field: 'assigned_to', message: `존재하지 않는 사용자: ${asset.assigned_to}` });
+      }
+      if (asset.serial_number) {
+        if (existingSerialSet.has(asset.serial_number)) {
+          errors.push({ row, field: 'serial_number', message: `이미 등록된 시리얼넘버: ${asset.serial_number}` });
+        }
+        if (newSerials.has(asset.serial_number)) {
+          errors.push({ row, field: 'serial_number', message: `엑셀 내 중복 시리얼넘버: ${asset.serial_number}` });
+        }
+        newSerials.add(asset.serial_number);
+      }
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({ success: false, errors });
+    }
+
+    // 트랜잭션으로 일괄 등록
+    await conn.beginTransaction();
+
+    const results = [];
+
+    for (let i = 0; i < assets.length; i++) {
+      const asset = assets[i];
+
+      // 자산 코드 생성
+      const baseDate = asset.purchase_date ? new Date(asset.purchase_date) : new Date();
+      const year = baseDate.getFullYear();
+      const prefix = `AST-${year}-`;
+      const [lastRow] = await conn.query(
+        'SELECT asset_code FROM assets WHERE asset_code LIKE ? ORDER BY asset_code DESC LIMIT 1',
+        [`${prefix}%`]
+      );
+      let seq = 1;
+      if (lastRow.length > 0) {
+        const lastSeq = parseInt(lastRow[0].asset_code.split('-')[2], 10);
+        if (!isNaN(lastSeq)) seq = lastSeq + 1;
+      }
+      const asset_code = `${prefix}${String(seq).padStart(3, '0')}`;
+
+      const category_id = categoryMap.get(asset.category) || null;
+      const department_id = asset.department ? deptMap.get(asset.department) || null : null;
+      const assigned_to = asset.assigned_to ? userMap.get(asset.assigned_to) || null : null;
+      const status = assigned_to ? 'in_use' : 'available';
+
+      const [result] = await conn.query(
+        `INSERT INTO assets
+         (asset_code, name, category_id, description, serial_number, mac_address, manufacturer, model,
+          purchase_date, purchase_cost, warranty_expiry, location, department_id, assigned_to, status, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [asset_code, asset.name, category_id, asset.description || null,
+         asset.serial_number || null, asset.mac_address || null,
+         asset.manufacturer || null, asset.model || null,
+         asset.purchase_date || null, asset.purchase_cost || null,
+         asset.warranty_expiry || null, asset.location || null,
+         department_id, assigned_to, status, asset.notes || null]
+      );
+
+      await conn.query(
+        'INSERT INTO asset_logs (asset_id, user_id, action, details) VALUES (?, ?, ?, ?)',
+        [result.insertId, req.user.id, 'created', JSON.stringify({ name: asset.name, asset_code, bulk_import: true })]
+      );
+
+      results.push({ row: i + 1, asset_code, name: asset.name });
+    }
+
+    await conn.commit();
+    res.status(201).json({ success: true, created: results.length, results });
+  } catch (err) {
+    await conn.rollback();
+    console.error('Bulk import error:', err);
+    res.status(500).json({ success: false, errors: [{ row: 0, field: 'server', message: '서버 오류가 발생했습니다.' }] });
+  } finally {
+    conn.release();
+  }
+});
+
 // 자산 수정 (관리자/부서장)
 router.put('/:id', authenticate, isManagerOrAdmin, async (req, res) => {
   const conn = await pool.getConnection();
