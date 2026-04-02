@@ -1,16 +1,11 @@
 import { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { useLookup } from '../hooks/useLookup';
-
-const ROLE_LABELS = { admin: '관리자', manager: '부서장', user: '사용자' };
-const ROLE_COLORS = {
-  admin: 'bg-red-50 text-red-700',
-  manager: 'bg-indigo-50 text-indigo-700',
-  user: 'bg-gray-100 text-gray-600',
-};
+import { useCode } from '../contexts/CodeContext';
 
 export default function UserList() {
   const { departments: lookupDepts, deptName } = useLookup();
+  const { getCodeName, getCodeColor } = useCode();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -19,6 +14,34 @@ export default function UserList() {
   const [form, setForm] = useState({ email: '', password: '', name: '', role: 'user', department_id: '', phone: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [sort, setSort] = useState({ key: '', dir: 'asc' });
+
+  const handleSort = (key) => {
+    setSort(prev => prev.key === key
+      ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: 'asc' }
+    );
+  };
+
+  const sortedUsers = [...users].sort((a, b) => {
+    if (!sort.key) return 0;
+    let va, vb;
+    if (sort.key === 'role') {
+      va = getCodeName('USER_ROLE', a.role) || ''; vb = getCodeName('USER_ROLE', b.role) || '';
+    } else if (sort.key === 'department_id') {
+      va = deptName(a.department_id); vb = deptName(b.department_id);
+    } else if (sort.key === 'status') {
+      const statusVal = u => u.login_fail_count >= 5 ? '잠김' : u.is_active ? '활성' : '비활성';
+      va = statusVal(a); vb = statusVal(b);
+    } else {
+      va = a[sort.key] ?? ''; vb = b[sort.key] ?? '';
+    }
+    if (typeof va === 'string') va = va.toLowerCase();
+    if (typeof vb === 'string') vb = vb.toLowerCase();
+    if (va < vb) return sort.dir === 'asc' ? -1 : 1;
+    if (va > vb) return sort.dir === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   const fetchUsers = () => {
     setLoading(true);
@@ -114,22 +137,35 @@ export default function UserList() {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">이름</th>
-                <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">이메일</th>
-                <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">역할</th>
-                <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">부서</th>
-                <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">상태</th>
+                {[
+                  { key: 'name', label: '이름' },
+                  { key: 'email', label: '이메일' },
+                  { key: 'role', label: '역할' },
+                  { key: 'department_id', label: '부서' },
+                  { key: 'status', label: '상태' },
+                ].map(col => (
+                  <th
+                    key={col.key}
+                    onClick={() => handleSort(col.key)}
+                    className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium cursor-pointer hover:text-gray-700 select-none"
+                  >
+                    {col.label}
+                    {sort.key === col.key && (
+                      <span className="ml-1">{sort.dir === 'asc' ? '\u25B2' : '\u25BC'}</span>
+                    )}
+                  </th>
+                ))}
                 <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">조치</th>
               </tr>
             </thead>
             <tbody>
-              {users.map(u => (
+              {sortedUsers.map(u => (
                 <tr key={u.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
                   <td className="px-5 py-3.5 text-sm font-medium text-gray-900">{u.name}</td>
                   <td className="px-5 py-3.5 text-sm text-gray-500">{u.email}</td>
                   <td className="px-5 py-3.5">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${ROLE_COLORS[u.role]}`}>
-                      {ROLE_LABELS[u.role]}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCodeColor('USER_ROLE', u.role)}`}>
+                      {getCodeName('USER_ROLE', u.role)}
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-sm text-gray-500">{deptName(u.department_id)}</td>
