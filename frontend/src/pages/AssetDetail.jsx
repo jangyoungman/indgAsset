@@ -3,37 +3,18 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLookup } from '../hooks/useLookup';
-
-const STATUS_LABELS = {
-  available: '사용 가능',
-  in_use: '사용 중',
-  maintenance: '정비 중',
-  disposed: '폐기',
-};
-
-const STATUS_COLORS = {
-  available: 'bg-emerald-50 text-emerald-700',
-  in_use: 'bg-blue-50 text-blue-700',
-  maintenance: 'bg-amber-50 text-amber-700',
-  disposed: 'bg-gray-100 text-gray-500',
-};
-
-const ACTION_COLORS = {
-  created: 'bg-emerald-500',
-  updated: 'bg-blue-500',
-  assigned: 'bg-indigo-500',
-  returned: 'bg-amber-500',
-  disposed: 'bg-red-500',
-};
+import { useCode } from '../contexts/CodeContext';
 
 export default function AssetDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isManagerOrAdmin } = useAuth();
+  const { isAdmin, isManagerOrAdmin } = useAuth();
   const { userName, deptName } = useLookup();
+  const { getCodeName, getCodeColor, getCodeList } = useCode();
   const [asset, setAsset] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statusChanging, setStatusChanging] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -47,6 +28,24 @@ export default function AssetDetail() {
       .catch(() => navigate('/assets'))
       .finally(() => setLoading(false));
   }, [id, navigate]);
+
+  const handleStatusChange = async (newStatus) => {
+    if (newStatus === asset.status) return;
+    setStatusChanging(true);
+    try {
+      await api.put(`/assets/${id}`, { status: newStatus });
+      const [assetRes, logsRes] = await Promise.all([
+        api.get(`/assets/${id}`),
+        api.get(`/assets/${id}/logs`),
+      ]);
+      setAsset(assetRes.data);
+      setLogs(logsRes.data);
+    } catch (err) {
+      alert(err.response?.data?.error || '상태 변경에 실패했습니다.');
+    } finally {
+      setStatusChanging(false);
+    }
+  };
 
   if (loading) return <div className="p-8 text-center text-gray-400">로딩 중...</div>;
   if (!asset) return null;
@@ -78,9 +77,22 @@ export default function AssetDetail() {
           <h1 className="text-xl font-semibold text-gray-900">{asset.name}</h1>
         </div>
         <div className="flex items-center gap-3">
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[asset.status]}`}>
-            {STATUS_LABELS[asset.status]}
-          </span>
+          {isAdmin ? (
+            <select
+              value={asset.status}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              disabled={statusChanging}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border-0 cursor-pointer focus:ring-2 focus:ring-indigo-500 outline-none ${getCodeColor('ASSET_STATUS', asset.status)} ${statusChanging ? 'opacity-50' : ''}`}
+            >
+              {getCodeList('ASSET_STATUS').map(c => (
+                <option key={c.code} value={c.code}>{c.name}</option>
+              ))}
+            </select>
+          ) : (
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getCodeColor('ASSET_STATUS', asset.status)}`}>
+              {getCodeName('ASSET_STATUS', asset.status)}
+            </span>
+          )}
           {isManagerOrAdmin && (
             <Link to={`/assets/${id}/edit`}
               className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
@@ -130,9 +142,9 @@ export default function AssetDetail() {
           <div className="space-y-3">
             {logs.map(log => (
               <div key={log.id} className="flex items-start gap-3 text-sm py-2 border-b border-gray-100 last:border-0">
-                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${ACTION_COLORS[log.action] || 'bg-gray-400'}`} />
+                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${getCodeColor('LOG_ACTION', log.action) || 'bg-gray-400'}`} />
                 <div className="flex-1 min-w-0">
-                  <span className="font-medium text-gray-900">{log.action}</span>
+                  <span className="font-medium text-gray-900">{getCodeName('LOG_ACTION', log.action)}</span>
                   {log.user_id && <span className="text-gray-500"> · {userName(log.user_id)}</span>}
                 </div>
                 <span className="text-xs text-gray-400 flex-shrink-0">
