@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLookup } from '../hooks/useLookup';
+import { useCode } from '../contexts/CodeContext';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { userName, deptName } = useLookup();
+  const { getCodeName, getCodeColor } = useCode();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -19,11 +21,15 @@ export default function Dashboard() {
   if (loading) return <div className="p-8 text-center text-gray-400">로딩 중...</div>;
   if (!stats) return <div className="p-8 text-center text-gray-400">데이터를 불러올 수 없습니다.</div>;
 
-  const statusMap = {
-    available: { label: '사용 가능', textColor: 'text-emerald-600', dotColor: 'bg-emerald-500' },
-    in_use: { label: '사용 중', textColor: 'text-indigo-600', dotColor: 'bg-indigo-500' },
-    maintenance: { label: '정비 중', textColor: 'text-amber-600', dotColor: 'bg-amber-500' },
-    disposed: { label: '폐기', textColor: 'text-gray-400', dotColor: 'bg-gray-400' },
+  const getStatusStyle = (status) => {
+    const color = getCodeColor('ASSET_STATUS', status);
+    const colorMap = {
+      'bg-emerald-50 text-emerald-700': { textColor: 'text-emerald-600', dotColor: 'bg-emerald-500' },
+      'bg-blue-50 text-blue-700': { textColor: 'text-indigo-600', dotColor: 'bg-indigo-500' },
+      'bg-amber-50 text-amber-700': { textColor: 'text-amber-600', dotColor: 'bg-amber-500' },
+      'bg-gray-100 text-gray-500': { textColor: 'text-gray-400', dotColor: 'bg-gray-400' },
+    };
+    return colorMap[color] || { textColor: 'text-gray-600', dotColor: 'bg-gray-400' };
   };
 
   return (
@@ -36,7 +42,7 @@ export default function Dashboard() {
       {/* 상태별 요약 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         {stats.statusCounts.map(s => {
-          const meta = statusMap[s.status] || { label: s.status, textColor: 'text-gray-600', dotColor: 'bg-gray-400' };
+          const meta = { label: getCodeName('ASSET_STATUS', s.status), ...getStatusStyle(s.status) };
           return (
             <div key={s.status} className="bg-white rounded-xl shadow-sm p-5">
               <div className="flex items-center gap-2 mb-3">
