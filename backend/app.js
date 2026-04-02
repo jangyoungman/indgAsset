@@ -10,6 +10,7 @@ const assetRoutes = require('./routes/assets');
 const assignmentRoutes = require('./routes/assignments');
 const dashboardRoutes = require('./routes/dashboard');
 const notificationRoutes = require('./routes/notifications');
+const codeRoutes = require('./routes/codes');
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use('/api/assets', assetRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/codes', codeRoutes);
 
 // 상태 체크
 app.get('/api/health', (req, res) => {
