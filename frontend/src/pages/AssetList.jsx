@@ -19,7 +19,7 @@ const STATUS_COLORS = {
 };
 
 export default function AssetList() {
-  const { isManagerOrAdmin } = useAuth();
+  const { isAdmin, isManagerOrAdmin } = useAuth();
   const { userName, deptName } = useLookup();
   const [assets, setAssets] = useState([]);
   const [pagination, setPagination] = useState({});
@@ -53,9 +53,16 @@ export default function AssetList() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-semibold text-gray-900">자산 목록</h1>
         {isManagerOrAdmin && (
-          <Link to="/assets/new" className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
-            + 자산 등록
-          </Link>
+          <div className="flex gap-2">
+            {isAdmin && (
+              <Link to="/assets/bulk-upload" className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition">
+                일괄 등록
+              </Link>
+            )}
+            <Link to="/assets/new" className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+              + 자산 등록
+            </Link>
+          </div>
         )}
       </div>
 
