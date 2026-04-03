@@ -10,6 +10,7 @@ import AssetDetail from './pages/AssetDetail';
 import AssetBulkUpload from './pages/AssetBulkUpload';
 import UserList from './pages/UserList';
 import CodeManagement from './pages/CodeManagement';
+import DepartmentManagement from './pages/DepartmentManagement';
 
 function PrivateRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -58,6 +59,11 @@ export default function App() {
             <Route path="system/codes" element={
               <PrivateRoute roles={['admin']}>
                 <CodeManagement />
+              </PrivateRoute>
+            } />
+            <Route path="system/departments" element={
+              <PrivateRoute roles={['admin']}>
+                <DepartmentManagement />
               </PrivateRoute>
             } />
           </Route>

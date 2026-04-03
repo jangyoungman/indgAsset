@@ -104,7 +104,7 @@
   <tr><td><code>departments</code></td><td>부서 정보</td><td>name, code</td></tr>
   <tr><td><code>users</code></td><td>사용자 계정</td><td>email, role (admin/manager/user), department_id</td></tr>
   <tr><td><code>asset_categories</code></td><td>자산 분류 (계층 구조)</td><td>name, parent_id</td></tr>
-  <tr><td><code>assets</code></td><td>자산 마스터</td><td>asset_code, name, status, purchase_cost, assigned_to</td></tr>
+  <tr><td><code>assets</code></td><td>자산 마스터</td><td>asset_code, name, status, mac_address, purchase_cost, assigned_to</td></tr>
   <tr><td><code>asset_assignments</code></td><td>대여/반납 기록</td><td>asset_id, user_id, status, checkout_date, actual_return</td></tr>
   <tr><td><code>approval_workflows</code></td><td>승인 워크플로우</td><td>action_type, requester_id, approver_id, status</td></tr>
   <tr><td><code>notifications</code></td><td>알림</td><td>user_id, title, message, is_read</td></tr>
@@ -161,7 +161,7 @@ docker-compose up -d
 #    API 서버:   http://localhost:4000
 
 # 3. 기본 관리자 계정
-#    이메일: admin@company.com
+#    이메일: admin@indg.co.kr
 #    비밀번호: admin123 (초기 비밀번호, 변경 필요)</pre>
 
   <h3>로컬 개발 환경</h3>

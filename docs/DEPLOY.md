@@ -91,12 +91,20 @@ pm2 startup
 
 ---
 
-## 6단계: 프론트엔드 빌드
+## 6단계: 프론트엔드 빌드 (로컬에서 수행)
+
+> **경고: EC2 서버에서 직접 빌드하면 메모리 부족으로 서버가 먹통이 됩니다.**
+> 반드시 로컬 PC에서 빌드 후 결과물을 업로드하세요.
 
 ```bash
-cd /home/ubuntu/indgAsset/frontend
+# 로컬 PC에서 실행
+cd /path/to/indgAsset/frontend
 npm install
 REACT_APP_API_URL=http://{EC2_IP}/api npm run build
+
+# 빌드 결과물을 EC2에 업로드
+rsync -avz --delete -e "ssh -i your-key.pem" \
+  build/ ubuntu@{EC2_IP}:/home/ubuntu/indgAsset/frontend/build/
 ```
 
 ---
@@ -198,11 +206,16 @@ sudo certbot --nginx -d yourdomain.com
 
 ### 프론트엔드 재빌드
 
-API URL을 HTTPS 도메인으로 변경하여 재빌드:
+API URL을 HTTPS 도메인으로 변경하여 **로컬에서** 재빌드:
 
 ```bash
-cd /home/ubuntu/indgAsset/frontend
+# 로컬 PC에서 실행
+cd /path/to/indgAsset/frontend
 REACT_APP_API_URL=https://yourdomain.com/api npm run build
+
+# EC2에 업로드
+rsync -avz --delete -e "ssh -i your-key.pem" \
+  build/ ubuntu@{EC2_IP}:/home/ubuntu/indgAsset/frontend/build/
 ```
 
 ### 백엔드 .env 수정
@@ -238,9 +251,21 @@ git pull
 cd backend
 npm install
 pm2 restart indg-backend
+```
 
-# 프론트엔드 변경 시
-cd ../frontend
+### 프론트엔드 변경 시 (로컬에서 빌드 후 업로드)
+
+> **주의: EC2 서버에서 직접 `npm run build` 하지 마세요!**
+> React 빌드는 메모리를 많이 사용하여 EC2(t2 계열)에서 실행 시 서버가 먹통이 됩니다.
+> 반드시 로컬에서 빌드 후 결과물만 업로드하세요.
+
+```bash
+# 1. 로컬 PC에서 빌드
+cd /home/neon/project/indgAsset/frontend
 npm install
-REACT_APP_API_URL=http://{EC2_IP}/api npm run build
+REACT_APP_API_URL=https://asset.indg.co.kr/api npm run build
+
+# 2. 빌드 결과물만 EC2에 업로드
+rsync -avz --delete -e "ssh -i /path/to/aws-key.pem" \
+  build/ ubuntu@{EC2_IP}:/home/ubuntu/indgAsset/frontend/build/
 ```

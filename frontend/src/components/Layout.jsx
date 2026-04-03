@@ -88,8 +88,14 @@ export default function Layout() {
     { to: '/assets', label: '자산 목록', icon: icons.assets, roles: ['admin', 'manager', 'user'] },
     { to: '/assignments', label: '대여/반납', icon: icons.assignments, roles: ['admin', 'manager', 'user'] },
     { to: '/users', label: '사용자 관리', icon: icons.users, roles: ['admin'] },
-    { to: '/system/codes', label: '공통코드 관리', icon: icons.settings, roles: ['admin'] },
   ];
+
+  const systemMenuItems = [
+    { to: '/system/codes', label: '공통코드 관리' },
+    { to: '/system/departments', label: '부서 관리' },
+  ];
+
+  const [systemMenuOpen, setSystemMenuOpen] = useState(location.pathname.startsWith('/system'));
 
   const isActive = (to) => {
     if (to === '/') return location.pathname === '/';
@@ -143,6 +149,49 @@ export default function Layout() {
                 </Link>
               );
             })
+          }
+
+          {/* 시스템 관리 (admin only) */}
+          {isAdmin && (
+            <div className="mt-1">
+              <button
+                onClick={() => sidebarOpen ? setSystemMenuOpen(!systemMenuOpen) : navigate('/system/codes')}
+                title={!sidebarOpen ? '시스템 관리' : undefined}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors ${
+                  location.pathname.startsWith('/system')
+                    ? 'bg-indigo-500/10 text-indigo-400'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <span className="flex-shrink-0">{icons.settings}</span>
+                {sidebarOpen && (
+                  <>
+                    <span className="text-sm font-medium whitespace-nowrap flex-1 text-left">시스템 관리</span>
+                    <svg className={`w-3 h-3 transition-transform ${systemMenuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </>
+                )}
+              </button>
+              {sidebarOpen && systemMenuOpen && (
+                <div className="ml-8 space-y-0.5">
+                  {systemMenuItems.map(item => (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                        location.pathname === item.to
+                          ? 'text-indigo-400 bg-indigo-500/10'
+                          : 'text-gray-500 hover:text-white hover:bg-gray-800'
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
           }
         </nav>
 
