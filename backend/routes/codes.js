@@ -3,8 +3,8 @@ const router = express.Router();
 const pool = require('../config/database');
 const { authenticate, authorize } = require('../middleware/auth');
 
-// 전체 공통코드 조회 (그룹별)
-router.get('/', authenticate, async (req, res) => {
+// 전체 공통코드 조회 (그룹별) — 인증 불필요 (로그인 전에도 사용)
+router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(
       'SELECT * FROM common_codes ORDER BY group_code, sort_order, code'
@@ -21,8 +21,8 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-// 특정 그룹 코드 조회 (활성만)
-router.get('/:groupCode', authenticate, async (req, res) => {
+// 특정 그룹 코드 조회 (활성만) — 인증 불필요
+router.get('/:groupCode', async (req, res) => {
   try {
     const [rows] = await pool.query(
       'SELECT * FROM common_codes WHERE group_code = ? AND is_active = TRUE ORDER BY sort_order, code',

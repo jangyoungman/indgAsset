@@ -195,22 +195,29 @@ router.post('/bulk', authenticate, authorize('admin'), async (req, res) => {
     const [categories] = await conn.query('SELECT id, name FROM asset_categories');
     const categoryMap = new Map(categories.map(c => [c.name, c.id]));
 
-    const [departments] = await conn.query('SELECT id, name FROM departments');
-    const deptMap = new Map(departments.map(d => [d.name, d.id]));
-
-    // Auth 서버에서 사용자 목록 가져오기
+    // Auth 서버에서 부서/사용자 목록 가져오기
     const token = req.headers.authorization?.split(' ')[1];
+    let deptMap = new Map();
     let userMap = new Map();
     try {
-      const userRes = await fetch(`${AUTH_SERVER_URL}/api/users`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const [deptRes, userRes] = await Promise.all([
+        fetch(`${AUTH_SERVER_URL}/api/departments`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${AUTH_SERVER_URL}/api/users`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+      const departments = await deptRes.json();
       const users = await userRes.json();
+      if (Array.isArray(departments)) {
+        deptMap = new Map(departments.map(d => [d.name, d.id]));
+      }
       if (Array.isArray(users)) {
         userMap = new Map(users.map(u => [u.name, u.id]));
       }
     } catch (e) {
-      // 사용자 목록 조회 실패 시 assigned_to 매핑 불가
+      // Auth 서버 연결 실패 시 부서/사용자 매핑 불가
     }
 
     // 기존 serial_number 목록 조회
@@ -351,6 +358,38 @@ router.put('/:id', authenticate, isManagerOrAdmin, async (req, res) => {
     res.json({ message: '자산 정보가 수정되었습니다.' });
   } catch (err) {
     await conn.rollback();
+    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// 자산 일괄 삭제 (관리자 전용 - disposed 처리) — /:id 보다 먼저 정의해야 함
+router.delete('/bulk', authenticate, authorize('admin'), async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: '삭제할 자산을 선택하세요.' });
+    }
+
+    await conn.beginTransaction();
+
+    const placeholders = ids.map(() => '?').join(',');
+    await conn.query(`UPDATE assets SET status = 'disposed' WHERE id IN (${placeholders})`, ids);
+
+    for (const id of ids) {
+      await conn.query(
+        'INSERT INTO asset_logs (asset_id, user_id, action, details) VALUES (?, ?, ?, ?)',
+        [id, req.user.id, 'disposed', JSON.stringify({ bulk_dispose: true })]
+      );
+    }
+
+    await conn.commit();
+    res.json({ message: `${ids.length}건의 자산이 폐기 처리되었습니다.` });
+  } catch (err) {
+    await conn.rollback();
+    console.error('Bulk delete error:', err);
     res.status(500).json({ error: '서버 오류가 발생했습니다.' });
   } finally {
     conn.release();

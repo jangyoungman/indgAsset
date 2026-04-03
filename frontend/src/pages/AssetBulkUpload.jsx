@@ -27,6 +27,9 @@ const COLUMN_LABELS = {
 
 const MAC_REGEX = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/;
 
+// 한글 헤더 → 영문 키 역매핑
+const LABEL_TO_KEY = Object.fromEntries(Object.entries(COLUMN_LABELS).map(([k, v]) => [v, k]));
+
 function formatDate(val) {
   if (!val) return '';
   if (val instanceof Date) {
@@ -36,6 +39,34 @@ function formatDate(val) {
     return `${y}-${m}-${d}`;
   }
   return String(val);
+}
+
+const SAMPLE_DATA = {
+  'IT장비': [
+    ['개발용 노트북', '노트북', 'SN-IT-001', 'AA:BB:CC:DD:EE:01', 'Dell', 'XPS 15 9530', '2024-03-15', 1800000, '2027-03-15', '본사 3층', '개발팀', '', '개발용'],
+    ['업무용 모니터', '모니터', 'SN-IT-002', '', 'LG', '27UK850', '2024-01-10', 450000, '2027-01-10', '본사 3층', '개발팀', '', '27인치'],
+  ],
+  '사무용품': [
+    ['높이조절 책상', '사무가구', 'IKEA', 'BEKANT', '2024-02-01', 350000, '본사 3층', '개발팀', '높이조절형'],
+    ['사무용 의자', '사무가구', 'Herman Miller', 'Aeron', '2024-02-01', 1200000, '본사 2층', '디자인팀', ''],
+  ],
+  '기타': [
+    ['법인차량', '차량', 'VIN-001', '현대', '아반떼 CN7', '2024-06-01', 25000000, '2027-06-01', '본사 주차장', '총무팀', '업무용'],
+  ],
+};
+
+function downloadTemplate() {
+  const wb = XLSX.utils.book_new();
+
+  for (const [sheetName, config] of Object.entries(SHEET_CONFIGS)) {
+    const headers = config.columns.map(col => COLUMN_LABELS[col]);
+    const rows = [headers, ...(SAMPLE_DATA[sheetName] || [])];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = headers.map(() => ({ wch: 18 }));
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  }
+
+  XLSX.writeFile(wb, '자산_일괄등록_템플릿.xlsx');
 }
 
 export default function AssetBulkUpload() {
@@ -95,12 +126,18 @@ export default function AssetBulkUpload() {
         if (!config) continue;
 
         const sheet = wb.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-        // Normalize date fields
-        for (const row of rows) {
+        const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        // 한글 헤더 → 영문 키 변환 + 날짜 정규화
+        const rows = rawRows.map(raw => {
+          const row = {};
+          for (const [key, val] of Object.entries(raw)) {
+            const mappedKey = LABEL_TO_KEY[key] || key;
+            row[mappedKey] = val;
+          }
           if (row.purchase_date) row.purchase_date = formatDate(row.purchase_date);
           if (row.warranty_expiry) row.warranty_expiry = formatDate(row.warranty_expiry);
-        }
+          return row;
+        });
         parsed[sheetName] = rows;
       }
 
@@ -158,7 +195,23 @@ export default function AssetBulkUpload() {
     } catch (err) {
       const data = err.response?.data;
       if (data?.errors) {
-        setErrors(data.errors.map(e => ({ sheet: '-', ...e })));
+        // 백엔드 row 번호를 시트별 행으로 매핑
+        const sheetNames = Object.keys(sheetData);
+        const sheetOffsets = [];
+        let offset = 0;
+        for (const name of sheetNames) {
+          sheetOffsets.push({ name, start: offset, count: sheetData[name].length });
+          offset += sheetData[name].length;
+        }
+        const mappedErrors = data.errors.map(e => {
+          const globalRow = e.row;
+          const match = sheetOffsets.find(s => globalRow > s.start && globalRow <= s.start + s.count);
+          if (match) {
+            return { ...e, sheet: match.name, row: globalRow - match.start };
+          }
+          return { ...e, sheet: '-' };
+        });
+        setErrors(mappedErrors);
       } else {
         alert('등록 중 오류가 발생했습니다.');
       }
@@ -212,22 +265,32 @@ export default function AssetBulkUpload() {
       </div>
 
       {!sheetData && (
-        <div
-          onDrop={handleDrop}
-          onDragOver={(e) => e.preventDefault()}
-          className="bg-white rounded-xl shadow-sm p-12 text-center border-2 border-dashed border-gray-300 hover:border-indigo-400 transition cursor-pointer"
-          onClick={() => document.getElementById('file-input').click()}
-        >
-          <div className="text-gray-400 text-4xl mb-4">&#128196;</div>
-          <p className="text-gray-600 mb-2">엑셀 파일을 드래그하거나 클릭하여 선택하세요</p>
-          <p className="text-gray-400 text-sm">시트: IT장비, 사무용품, 기타</p>
-          <input
-            id="file-input"
-            type="file"
-            accept=".xlsx,.xls"
-            className="hidden"
-            onChange={(e) => handleFile(e.target.files[0])}
-          />
+        <div className="space-y-4">
+          <div
+            onDrop={handleDrop}
+            onDragOver={(e) => e.preventDefault()}
+            className="bg-white rounded-xl shadow-sm p-12 text-center border-2 border-dashed border-gray-300 hover:border-indigo-400 transition cursor-pointer"
+            onClick={() => document.getElementById('file-input').click()}
+          >
+            <div className="text-gray-400 text-4xl mb-4">&#128196;</div>
+            <p className="text-gray-600 mb-2">엑셀 파일을 드래그하거나 클릭하여 선택하세요</p>
+            <p className="text-gray-400 text-sm">시트: IT장비, 사무용품, 기타</p>
+            <input
+              id="file-input"
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={(e) => handleFile(e.target.files[0])}
+            />
+          </div>
+          <div className="text-center">
+            <button
+              onClick={(e) => { e.stopPropagation(); downloadTemplate(); }}
+              className="text-indigo-600 hover:text-indigo-800 text-sm font-medium hover:underline"
+            >
+              &#8681; 템플릿 다운로드
+            </button>
+          </div>
         </div>
       )}
 
@@ -307,7 +370,31 @@ export default function AssetBulkUpload() {
             </div>
           )}
 
-          <div className="mt-6 flex justify-end gap-3">
+          {/* 서버 검증 오류 상세 목록 */}
+          {errors.length > 0 && errors.some(e => e.sheet === '-' || !Object.keys(SHEET_CONFIGS).includes(e.sheet)) && (
+            <div className="bg-red-50 rounded-xl p-4 mt-4 max-h-48 overflow-y-auto">
+              <p className="text-sm font-medium text-red-700 mb-2">서버 검증 오류:</p>
+              <ul className="text-sm text-red-600 space-y-1">
+                {errors.filter(e => e.sheet === '-').map((e, i) => (
+                  <li key={i}>행 {e.row}: [{e.field}] {e.message}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* 오류 상세 목록 (시트에 매핑된 오류) */}
+          {errors.length > 0 && errors.some(e => e.sheet !== '-') && (
+            <div className="bg-amber-50 rounded-xl p-4 mt-4 max-h-48 overflow-y-auto">
+              <p className="text-sm font-medium text-amber-700 mb-2">검증 오류 상세:</p>
+              <ul className="text-sm text-amber-600 space-y-1">
+                {errors.filter(e => e.sheet !== '-').map((e, i) => (
+                  <li key={i}>[{e.sheet}] 행 {e.row}: [{e.field}] {e.message}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="mt-4 flex justify-end gap-3">
             {errors.length > 0 && (
               <p className="text-sm text-red-600 self-center mr-auto">오류를 수정한 후 엑셀 파일을 다시 업로드하세요.</p>
             )}

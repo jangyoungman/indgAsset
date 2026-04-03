@@ -74,4 +74,26 @@ router.put('/:id/reset-password', authenticate, authorize('admin'), async (req, 
   }
 });
 
+// 부서 등록 (관리자 전용)
+router.post('/departments', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    const result = await proxyToAuth('/api/departments', { method: 'POST', body: req.body, token });
+    res.status(result.status).json(result.data);
+  } catch (err) {
+    res.status(502).json({ error: 'Auth 서버에 연결할 수 없습니다.' });
+  }
+});
+
+// 부서 수정 (관리자 전용)
+router.put('/departments/:id', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    const result = await proxyToAuth(`/api/departments/${req.params.id}`, { method: 'PUT', body: req.body, token });
+    res.status(result.status).json(result.data);
+  } catch (err) {
+    res.status(502).json({ error: 'Auth 서버에 연결할 수 없습니다.' });
+  }
+});
+
 module.exports = router;

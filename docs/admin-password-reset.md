@@ -4,12 +4,12 @@
 
 - **작업일자:** 2026-04-02
 - **대상 시스템:** indgAsset (자산관리시스템)
-- **대상 계정:** admin@company.com
+- **대상 계정:** admin@indg.co.kr
 - **데이터베이스:** MySQL 8.0 (asset_management)
 
 ## 원인
 
-admin@company.com 계정의 비밀번호 분실로 인해 로그인 불가 상태 발생.
+admin@indg.co.kr 계정의 비밀번호 분실로 인해 로그인 불가 상태 발생.
 
 ## 조치 내용
 
@@ -29,7 +29,7 @@ const bcrypt = require('bcrypt');
 const db = require('./config/database');
 async function resetPassword() {
   const hash = await bcrypt.hash('이노다임디폴트', 10);
-  await db.query('UPDATE users SET password_hash = ? WHERE email = ?', [hash, 'admin@company.com']);
+  await db.query('UPDATE users SET password_hash = ? WHERE email = ?', [hash, 'admin@indg.co.kr']);
   console.log('비밀번호가 재설정되었습니다.');
   process.exit(0);
 }
@@ -39,7 +39,7 @@ resetPassword();
 
 ### 3. 결과
 
-- users 테이블의 admin@company.com 계정 비밀번호가 정상적으로 재설정됨
+- users 테이블의 admin@indg.co.kr 계정 비밀번호가 정상적으로 재설정됨
 - 변경된 비밀번호: `이노다임디폴트`
 
 ## 참고 파일
