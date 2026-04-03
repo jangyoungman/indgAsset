@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>자산관리 시스템 아키텍처 문서</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', -apple-system, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.7; }
+  .container { max-width: 960px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; color: #4f46e5; margin-bottom: 8px; }
+  h2 { font-size: 1.4rem; color: #334155; margin: 32px 0 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
+  h3 { font-size: 1.1rem; color: #475569; margin: 20px 0 8px; }
+  p, li { font-size: 0.95rem; }
+  .subtitle { color: #64748b; margin-bottom: 32px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 16px 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .badge { display: inline-block; background: #eef2ff; color: #4338ca; padding: 2px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; margin: 2px; }
+  .badge-green { background: #ecfdf5; color: #059669; }
+  .badge-orange { background: #fff7ed; color: #ea580c; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; }
+  th { background: #f1f5f9; font-weight: 600; color: #475569; }
+  tr:hover { background: #f8fafc; }
+  code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; }
+  pre { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 0.85rem; margin: 12px 0; }
+  .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .flow-item { background: #fff; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 500; }
+  .flow-arrow { color: #94a3b8; font-size: 1.2rem; }
+  .role-card { padding: 16px; border-radius: 8px; }
+  .role-admin { background: #fef2f2; border-left: 4px solid #ef4444; }
+  .role-manager { background: #fffbeb; border-left: 4px solid #f59e0b; }
+  .role-user { background: #eff6ff; border-left: 4px solid #3b82f6; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>자산관리 시스템 (Asset Management System)</h1>
+<p class="subtitle">Node.js + React + MySQL 기반 사내 자산 통합 관리 플랫폼</p>
+
+<h2>1. 시스템 아키텍처</h2>
+<div class="card">
+  <div class="flow">
+    <div class="flow-item">👤 사용자 (브라우저)</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-item">⚛️ React SPA<br><small>:3000</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-item">🟢 Express API<br><small>:4000</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-item">🐬 MySQL 8.0<br><small>:3306</small></div>
+  </div>
+  <p style="margin-top: 12px; color: #64748b; font-size: 0.85rem;">
+    모든 컴포넌트는 Docker Compose로 통합 배포되며, JWT 기반 인증으로 보호됩니다.
+  </p>
+</div>
+
+<h2>2. 기술 스택</h2>
+<div class="grid2">
+  <div class="card">
+    <h3>백엔드</h3>
+    <span class="badge">Node.js 20</span>
+    <span class="badge">Express 4</span>
+    <span class="badge">mysql2</span>
+    <span class="badge">JWT</span>
+    <span class="badge">bcrypt</span>
+    <span class="badge">Helmet</span>
+  </div>
+  <div class="card">
+    <h3>프론트엔드</h3>
+    <span class="badge">React 18</span>
+    <span class="badge">React Router 6</span>
+    <span class="badge">Axios</span>
+    <span class="badge">Tailwind CSS</span>
+  </div>
+  <div class="card">
+    <h3>데이터베이스</h3>
+    <span class="badge-green badge">MySQL 8.0</span>
+    <span class="badge">utf8mb4</span>
+    <span class="badge">InnoDB</span>
+  </div>
+  <div class="card">
+    <h3>인프라</h3>
+    <span class="badge-orange badge">Docker</span>
+    <span class="badge-orange badge">Docker Compose</span>
+  </div>
+</div>
+
+<h2>3. 사용자 역할 체계</h2>
+<div class="role-card role-admin">
+  <strong>관리자 (admin)</strong> — 전체 시스템 제어 권한. 모든 부서의 자산 등록/수정/폐기, 사용자 관리, 대여 승인/거절, 대시보드 및 전체 통계 조회가 가능합니다.
+</div>
+<div class="role-card role-manager" style="margin-top: 8px;">
+  <strong>부서장 (manager)</strong> — 자기 부서 내 자산 등록/수정, 부서원의 대여 요청 승인/거절, 부서 자산 대시보드 및 통계 조회가 가능합니다.
+</div>
+<div class="role-card role-user" style="margin-top: 8px;">
+  <strong>일반 사용자 (user)</strong> — 자기 부서 자산 조회, 자산 대여 요청 및 반납, 본인 알림 확인이 가능합니다.
+</div>
+
+<h2>4. 데이터베이스 ERD</h2>
+<div class="card">
+<table>
+  <tr><th>테이블</th><th>설명</th><th>주요 컬럼</th></tr>
+  <tr><td><code>departments</code></td><td>부서 정보</td><td>name, code</td></tr>
+  <tr><td><code>users</code></td><td>사용자 계정</td><td>email, role (admin/manager/user), department_id</td></tr>
+  <tr><td><code>asset_categories</code></td><td>자산 분류 (계층 구조)</td><td>name, parent_id</td></tr>
+  <tr><td><code>assets</code></td><td>자산 마스터</td><td>asset_code, name, status, purchase_cost, assigned_to</td></tr>
+  <tr><td><code>asset_assignments</code></td><td>대여/반납 기록</td><td>asset_id, user_id, status, checkout_date, actual_return</td></tr>
+  <tr><td><code>approval_workflows</code></td><td>승인 워크플로우</td><td>action_type, requester_id, approver_id, status</td></tr>
+  <tr><td><code>notifications</code></td><td>알림</td><td>user_id, title, message, is_read</td></tr>
+  <tr><td><code>asset_logs</code></td><td>자산 변경 이력</td><td>asset_id, action, details (JSON)</td></tr>
+</table>
+</div>
+
+<h2>5. API 엔드포인트</h2>
+<div class="card">
+<table>
+  <tr><th>메서드</th><th>경로</th><th>설명</th><th>권한</th></tr>
+  <tr><td><span class="badge-green badge">POST</span></td><td>/api/auth/login</td><td>로그인</td><td>공개</td></tr>
+  <tr><td><span class="badge">GET</span></td><td>/api/auth/me</td><td>내 정보 조회</td><td>로그인</td></tr>
+  <tr><td><span class="badge">GET</span></td><td>/api/assets</td><td>자산 목록 (필터/검색/페이지네이션)</td><td>로그인</td></tr>
+  <tr><td><span class="badge">GET</span></td><td>/api/assets/:id</td><td>자산 상세</td><td>로그인</td></tr>
+  <tr><td><span class="badge-green badge">POST</span></td><td>/api/assets</td><td>자산 등록</td><td>관리자/부서장</td></tr>
+  <tr><td><span class="badge-orange badge">PUT</span></td><td>/api/assets/:id</td><td>자산 수정</td><td>관리자/부서장</td></tr>
+  <tr><td><span class="badge" style="background:#fef2f2;color:#dc2626;">DEL</span></td><td>/api/assets/:id</td><td>자산 폐기 처리</td><td>관리자</td></tr>
+  <tr><td><span class="badge-green badge">POST</span></td><td>/api/assignments/request</td><td>대여 요청</td><td>로그인</td></tr>
+  <tr><td><span class="badge-orange badge">PUT</span></td><td>/api/assignments/:id/approve</td><td>대여 승인/거절</td><td>관리자/부서장</td></tr>
+  <tr><td><span class="badge-orange badge">PUT</span></td><td>/api/assignments/:id/return</td><td>반납 처리</td><td>로그인</td></tr>
+  <tr><td><span class="badge">GET</span></td><td>/api/dashboard/stats</td><td>대시보드 통계</td><td>관리자/부서장</td></tr>
+  <tr><td><span class="badge">GET</span></td><td>/api/notifications</td><td>내 알림 목록</td><td>로그인</td></tr>
+  <tr><td><span class="badge">GET</span></td><td>/api/users</td><td>사용자 목록</td><td>관리자</td></tr>
+</table>
+</div>
+
+<h2>6. 승인 워크플로우</h2>
+<div class="card">
+  <div class="flow">
+    <div class="flow-item">일반 사용자<br>대여 요청</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-item">부서장/관리자<br>알림 수신</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-item">승인 or 거절</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-item">요청자<br>결과 알림</div>
+  </div>
+  <p style="margin-top: 12px; font-size: 0.9rem; color: #64748b;">
+    승인 시 자산 상태가 자동으로 "사용 중"으로 변경되며, 반납 시 "사용 가능"으로 복귀합니다.
+    모든 변경은 asset_logs에 JSON 형태로 이력이 기록됩니다.
+  </p>
+</div>
+
+<h2>7. 빠른 시작 가이드</h2>
+<div class="card">
+  <h3>Docker로 실행 (권장)</h3>
+  <pre>
+# 1. 프로젝트 폴더에서 실행
+docker-compose up -d
+
+# 2. DB 스키마 자동 적용 후, 브라우저에서 접속
+#    프론트엔드: http://localhost:3000
+#    API 서버:   http://localhost:4000
+
+# 3. 기본 관리자 계정
+#    이메일: admin@company.com
+#    비밀번호: admin123 (초기 비밀번호, 변경 필요)</pre>
+
+  <h3>로컬 개발 환경</h3>
+  <pre>
+# 백엔드
+cd backend
+cp .env.example .env   # DB 정보 수정
+npm install
+npm run dev
+
+# 프론트엔드 (별도 터미널)
+cd frontend
+npm install
+npm start</pre>
+</div>
+
+<h2>8. 프로젝트 구조</h2>
+<div class="card">
+<pre style="background: #f1f5f9; color: #334155;">
+asset-management-system/
+├── docker-compose.yml
+├── backend/
+│   ├── app.js                  # Express 서버 진입점
+│   ├── package.json
+│   ├── Dockerfile
+│   ├── .env.example
+│   ├── config/
+│   │   ├── database.js         # MySQL 연결 풀
+│   │   └── schema.sql          # DB 스키마 + 샘플 데이터
+│   ├── middleware/
+│   │   └── auth.js             # JWT 인증 + 역할 기반 접근 제어
+│   └── routes/
+│       ├── auth.js             # 로그인, 내 정보
+│       ├── users.js            # 사용자 CRUD (관리자)
+│       ├── assets.js           # 자산 CRUD + 이력
+│       ├── assignments.js      # 대여 요청/승인/반납
+│       ├── dashboard.js        # 통계/대시보드
+│       └── notifications.js    # 알림 관리
+└── frontend/
+    ├── package.json
+    ├── Dockerfile
+    └── src/
+        ├── App.jsx             # 라우팅 설정
+        ├── contexts/
+        │   └── AuthContext.jsx  # 인증 상태 관리
+        ├── utils/
+        │   └── api.js          # Axios 인스턴스
+        ├── components/
+        │   └── Layout.jsx      # 사이드바 + 헤더
+        └── pages/
+            ├── Login.jsx       # 로그인 페이지
+            ├── Dashboard.jsx   # 대시보드
+            └── AssetList.jsx   # 자산 목록</pre>
+</div>
+
+<h2>9. 향후 확장 포인트</h2>
+<div class="card" style="font-size: 0.9rem; color: #475569;">
+  <p><strong>QR코드/바코드 스캔</strong> — 모바일에서 자산 태그를 스캔하여 빠른 조회/대여 처리</p>
+  <p style="margin-top: 8px;"><strong>엑셀 일괄 등록/내보내기</strong> — 대량 자산을 CSV/Excel로 가져오기 및 리포트 다운로드</p>
+  <p style="margin-top: 8px;"><strong>이메일 알림 연동</strong> — Nodemailer를 통한 반납 기한 알림, 승인 요청 이메일 발송</p>
+  <p style="margin-top: 8px;"><strong>감가상각 자동 계산</strong> — 정액법/정률법 기반 자산 가치 감소 자동 산출</p>
+  <p style="margin-top: 8px;"><strong>SSO 연동</strong> — 사내 LDAP/Active Directory 또는 Google/Microsoft OAuth 연동</p>
+</div>
+
+</div>
+</body>
+</html>
