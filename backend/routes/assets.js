@@ -64,16 +64,7 @@ router.get('/', authenticate, async (req, res) => {
       params.push(s, s, s);
     }
 
-    // 일반 사용자: 자기 부서 자산만 조회
-    if (req.user.role === 'user') {
-      query += ' AND a.department_id = ?';
-      params.push(req.user.department_id);
-    }
-    // 부서장: 자기 부서 자산 조회
-    if (req.user.role === 'manager') {
-      query += ' AND a.department_id = ?';
-      params.push(req.user.department_id);
-    }
+    // 전체 사용자 모든 자산 조회 가능
 
     // 전체 개수
     const countQuery = query.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) as total FROM');

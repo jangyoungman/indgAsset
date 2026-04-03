@@ -67,6 +67,7 @@ export default function Layout() {
   const { deptName } = useLookup();
   const [unreadCount, setUnreadCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -105,11 +106,18 @@ export default function Layout() {
   const userInitial = user.name ? user.name.charAt(0).toUpperCase() : '?';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
+      {/* Mobile overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
-        className={`bg-gray-900 flex flex-col flex-shrink-0 transition-all duration-200 ${sidebarOpen ? 'w-60' : 'w-16'}`}
-        style={{ minHeight: '100vh' }}
+        className={`bg-gray-900 flex flex-col flex-shrink-0 transition-transform duration-200 ${sidebarOpen ? 'w-60' : 'w-16'} fixed md:relative z-50 inset-y-0 left-0 overflow-y-auto ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
       >
         {/* Top: App name + collapse toggle */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-gray-800">
@@ -136,6 +144,7 @@ export default function Layout() {
                   key={item.to}
                   to={item.to}
                   title={!sidebarOpen ? item.label : undefined}
+                  onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors ${
                     active
                       ? 'bg-indigo-500/10 text-indigo-400'
@@ -179,6 +188,7 @@ export default function Layout() {
                     <Link
                       key={item.to}
                       to={item.to}
+                      onClick={() => setMobileMenuOpen(false)}
                       className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
                         location.pathname === item.to
                           ? 'text-indigo-400 bg-indigo-500/10'
@@ -233,8 +243,18 @@ export default function Layout() {
       {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-white border-b px-6 py-3 flex items-center justify-between flex-shrink-0">
-          <div />
+        <header className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0">
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden text-gray-500 hover:text-gray-700"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+          <div className="hidden md:block" />
           <div className="flex items-center gap-4">
             {/* Bell icon with unread badge */}
             <Link to="/notifications" className="relative text-gray-500 hover:text-gray-700 transition-colors">

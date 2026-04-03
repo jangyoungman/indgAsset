@@ -19,10 +19,11 @@ export default function AssetList() {
   const [deleting, setDeleting] = useState(false);
 
   const handleSort = (key) => {
-    setSort(prev => prev.key === key
-      ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
-      : { key, dir: 'asc' }
-    );
+    setSort(prev => {
+      if (prev.key !== key) return { key, dir: 'asc' };
+      if (prev.dir === 'asc') return { key, dir: 'desc' };
+      return { key: '', dir: 'asc' };
+    });
   };
 
   const sortedAssets = [...assets].sort((a, b) => {
@@ -98,11 +99,11 @@ export default function AssetList() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
         <h1 className="text-xl font-semibold text-gray-900">자산 목록</h1>
         {isManagerOrAdmin && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full sm:w-auto flex-wrap">
             {isAdmin && (
               <button
                 onClick={handleBulkDelete}
@@ -125,7 +126,7 @@ export default function AssetList() {
       </div>
 
       {/* 필터/검색 */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex gap-4">
+      <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-col sm:flex-row gap-3 sm:gap-4">
         <form onSubmit={handleSearch} className="flex gap-2 flex-1">
           <input
             type="text"
@@ -134,10 +135,10 @@ export default function AssetList() {
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
           />
-          <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">검색</button>
+          <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition whitespace-nowrap">검색</button>
         </form>
         <select
-          className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+          className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full sm:w-auto"
           value={filters.status}
           onChange={e => setFilters(f => ({ ...f, status: e.target.value, page: 1 }))}
         >
@@ -153,8 +154,8 @@ export default function AssetList() {
         <div className="text-center py-16 text-gray-400">로딩 중...</div>
       ) : (
         <>
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <table className="w-full">
+          <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
+            <table className="w-full min-w-[800px]">
               <thead className="bg-gray-50">
                 <tr>
                   {isAdmin && (
