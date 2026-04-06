@@ -54,12 +54,22 @@ export default function AssignmentList() {
       .finally(() => setLoading(false));
   };
 
-  const fetchAvailableAssets = () => {
+  const [requestedAssetIds, setRequestedAssetIds] = useState(new Set());
+
+  const fetchAvailableAssets = async () => {
     setAssetsLoading(true);
-    api.get('/assets?status=available&limit=200')
-      .then(res => setAvailableAssets(res.data.data || []))
-      .catch(console.error)
-      .finally(() => setAssetsLoading(false));
+    try {
+      const [assetsRes, myRequests] = await Promise.all([
+        api.get('/assets?status=available&limit=200'),
+        api.get('/assignments?status=requested'),
+      ]);
+      setAvailableAssets(assetsRes.data.data || []);
+      setRequestedAssetIds(new Set((myRequests.data || []).map(a => a.asset_id)));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setAssetsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -261,12 +271,16 @@ export default function AssignmentList() {
                         <span className="text-sm font-semibold text-gray-900">{a.name}</span>
                         <div className="font-mono text-xs text-indigo-600 mt-0.5">{a.asset_code}</div>
                       </div>
-                      <button
-                        onClick={() => { setRequestModal(a); setRequestForm({ expected_return: '', request_note: '' }); }}
-                        className="shrink-0 bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-700 transition"
-                      >
-                        대여 요청
-                      </button>
+                      {requestedAssetIds.has(a.id) ? (
+                        <span className="shrink-0 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700">요청중</span>
+                      ) : (
+                        <button
+                          onClick={() => { setRequestModal(a); setRequestForm({ expected_return: '', request_note: '' }); }}
+                          className="shrink-0 bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-700 transition"
+                        >
+                          대여 요청
+                        </button>
+                      )}
                     </div>
                     <div className="text-xs text-gray-500">{a.category_name}</div>
                   </div>
@@ -294,12 +308,16 @@ export default function AssignmentList() {
                         <td className="px-5 py-3.5 text-sm text-gray-500">{a.category_name}</td>
                         <td className="px-5 py-3.5 text-sm text-gray-500">{a.location || '-'}</td>
                         <td className="px-5 py-3.5">
-                          <button
-                            onClick={() => { setRequestModal(a); setRequestForm({ expected_return: '', request_note: '' }); }}
-                            className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-700 transition"
-                          >
-                            대여 요청
-                          </button>
+                          {requestedAssetIds.has(a.id) ? (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700">요청중</span>
+                          ) : (
+                            <button
+                              onClick={() => { setRequestModal(a); setRequestForm({ expected_return: '', request_note: '' }); }}
+                              className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-700 transition"
+                            >
+                              대여 요청
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
