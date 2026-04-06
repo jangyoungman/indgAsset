@@ -81,7 +81,9 @@ If the query is unclear, use your best judgment. Example:
 Input: "노트북 폐기 외의 목록"
 Output: {"category":"노트북","status_not":"disposed"}`
     });
-    const text = msg.content[0].text.trim();
+    let text = msg.content[0].text.trim();
+    // 마크다운 코드블록 제거
+    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/,'').trim();
     return JSON.parse(text);
   } catch (e) {
     console.error('AI parse error:', e.message);
