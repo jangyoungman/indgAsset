@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,8 +7,13 @@ import { useCode } from '../contexts/CodeContext';
 
 export default function AssetSearch() {
   const { isAdmin, isManagerOrAdmin } = useAuth();
-  const { userName, deptName } = useLookup();
-  const { getCodeName, getCodeColor } = useCode();
+  const { users, departments, userName, deptName } = useLookup();
+  const { getCodeName, getCodeColor, getCodeList } = useCode();
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    api.get('/assets/categories').then(res => setCategories(res.data)).catch(() => {});
+  }, []);
 
   const [query, setQuery] = useState('');
   const [assets, setAssets] = useState([]);
@@ -102,6 +107,12 @@ export default function AssetSearch() {
     }
   };
 
+  const addChip = (text) => {
+    setQuery(prev => (prev ? prev + ' ' + text : text));
+  };
+
+  const statusList = getCodeList('ASSET_STATUS');
+
   // Build filter tags from filters object
   const filterTags = [];
   if (filters.category_name) filterTags.push({ label: '카테고리', value: filters.category_name });
@@ -158,9 +169,36 @@ export default function AssetSearch() {
           </button>
         </div>
       </div>
-      <p className="text-xs text-gray-400 mb-6">
-        카테고리, 상태, 사용자, 부서명을 조합하여 검색할 수 있습니다. Enter로 검색, Shift+Enter로 줄바꿈
-      </p>
+      {/* 키워드 칩 */}
+      <div className="space-y-2 mb-6">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-gray-400 w-14 shrink-0">카테고리</span>
+          {categories.map(c => (
+            <button key={c.id} onClick={() => addChip(c.name)} className="px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition">{c.name}</button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-gray-400 w-14 shrink-0">상태</span>
+          {statusList.map(s => (
+            <button key={s.code} onClick={() => addChip(s.name)} className="px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition">{s.name}</button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-gray-400 w-14 shrink-0">부서</span>
+          {departments.map(d => (
+            <button key={d.id} onClick={() => addChip(d.name)} className="px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition">{d.name}</button>
+          ))}
+        </div>
+        {users.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-gray-400 w-14 shrink-0">사용자</span>
+            {users.filter(u => u.is_active !== false).map(u => (
+              <button key={u.id} onClick={() => addChip(u.name)} className="px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition">{u.name}</button>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-gray-400">칩을 클릭하여 조합하세요. Enter로 검색, Shift+Enter로 줄바꿈</p>
+      </div>
 
       {/* 검색 전 안내 */}
       {!searched && !loading && (
