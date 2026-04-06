@@ -61,7 +61,8 @@ export default function UserList() {
 
   const openEdit = (u) => {
     setEditUser(u);
-    setForm({ email: u.email, password: '', name: u.name, role: u.role, department_id: u.department_id || '', phone: u.phone || '' });
+    setForm({ email: u.email, password: '', name: u.name, role: u.role, department_id: u.department_id || '', phone: u.phone || '',
+      is_homepage_admin: u.is_homepage_admin === 'T', receive_inquiry_email: u.receive_inquiry_email === 'T', receive_asset_email: u.receive_asset_email === 'T' });
     setError('');
     setShowModal(true);
   };
@@ -72,7 +73,8 @@ export default function UserList() {
     setSaving(true);
     try {
       if (editUser) {
-        const payload = { name: form.name, role: form.role, department_id: form.department_id ? Number(form.department_id) : null, phone: form.phone, is_active: editUser.is_active };
+        const payload = { name: form.name, role: form.role, department_id: form.department_id ? Number(form.department_id) : null, phone: form.phone, is_active: editUser.is_active,
+          is_homepage_admin: form.is_homepage_admin ? 'T' : 'F', receive_inquiry_email: form.receive_inquiry_email ? 'T' : 'F', receive_asset_email: form.receive_asset_email ? 'T' : 'F' };
         await api.put(`/users/${editUser.id}`, payload);
       } else {
         const payload = { ...form, department_id: form.department_id ? Number(form.department_id) : null };
@@ -283,6 +285,25 @@ export default function UserList() {
                 <label className={labelClass}>연락처</label>
                 <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className={inputClass} />
               </div>
+              {editUser && (
+                <div>
+                  <label className={labelClass}>이메일 수신 설정</label>
+                  <div className="space-y-2 mt-1">
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input type="checkbox" checked={form.is_homepage_admin || false} onChange={e => setForm(f => ({ ...f, is_homepage_admin: e.target.checked }))} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                      홈페이지 관리자
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input type="checkbox" checked={form.receive_inquiry_email || false} onChange={e => setForm(f => ({ ...f, receive_inquiry_email: e.target.checked }))} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                      홈페이지 문의 이메일 수신
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input type="checkbox" checked={form.receive_asset_email || false} onChange={e => setForm(f => ({ ...f, receive_asset_email: e.target.checked }))} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                      자산 대여 요청 이메일 수신
+                    </label>
+                  </div>
+                </div>
+              )}
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)}
                   className="px-5 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
