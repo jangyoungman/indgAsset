@@ -53,14 +53,32 @@ router.post('/search', authenticate, async (req, res) => {
     const filters = {};
 
     if (remaining) {
+      // 공백 제거 버전으로도 매칭 (DB: "사용 중" ↔ 입력: "사용중")
+      const noSpace = (s) => s.replace(/\s/g, '');
+      const matchAndRemove = (name) => {
+        if (remaining.includes(name)) {
+          remaining = remaining.replace(name, '').trim();
+          return true;
+        }
+        // 공백 제거 후 매칭 시도
+        const remainNoSpace = noSpace(remaining);
+        const nameNoSpace = noSpace(name);
+        if (remainNoSpace.includes(nameNoSpace)) {
+          // 원본에서 공백 무시하고 해당 부분 제거
+          const pattern = nameNoSpace.split('').join('\\s*');
+          remaining = remaining.replace(new RegExp(pattern), '').trim();
+          return true;
+        }
+        return false;
+      };
+
       // 1. 카테고리 매칭
       const [categories] = await pool.query('SELECT id, name FROM asset_categories WHERE name IS NOT NULL');
       categories.sort((a, b) => b.name.length - a.name.length);
       for (const cat of categories) {
-        if (remaining.includes(cat.name)) {
+        if (matchAndRemove(cat.name)) {
           filters.category_id = cat.id;
           filters.category_name = cat.name;
-          remaining = remaining.replace(cat.name, '').trim();
           break;
         }
       }
@@ -71,10 +89,9 @@ router.post('/search', authenticate, async (req, res) => {
       );
       statusCodes.sort((a, b) => b.name.length - a.name.length);
       for (const sc of statusCodes) {
-        if (remaining.includes(sc.name)) {
+        if (matchAndRemove(sc.name)) {
           filters.status = sc.code;
           filters.status_name = sc.name;
-          remaining = remaining.replace(sc.name, '').trim();
           break;
         }
       }
@@ -88,10 +105,9 @@ router.post('/search', authenticate, async (req, res) => {
         if (Array.isArray(users)) {
           users.sort((a, b) => b.name.length - a.name.length);
           for (const u of users) {
-            if (u.name && remaining.includes(u.name)) {
+            if (u.name && matchAndRemove(u.name)) {
               filters.assigned_to = u.id;
               filters.assigned_to_name = u.name;
-              remaining = remaining.replace(u.name, '').trim();
               break;
             }
           }
@@ -109,10 +125,9 @@ router.post('/search', authenticate, async (req, res) => {
         if (Array.isArray(departments)) {
           departments.sort((a, b) => b.name.length - a.name.length);
           for (const d of departments) {
-            if (d.name && remaining.includes(d.name)) {
+            if (d.name && matchAndRemove(d.name)) {
               filters.department_id = d.id;
               filters.department_name = d.name;
-              remaining = remaining.replace(d.name, '').trim();
               break;
             }
           }
