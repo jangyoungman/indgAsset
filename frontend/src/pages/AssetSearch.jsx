@@ -118,9 +118,18 @@ export default function AssetSearch() {
   // Build filter tags from filters object
   const filterTags = [];
   if (filters.category_name) filterTags.push({ label: '카테고리', value: filters.category_name });
+  if (filters.category_not_name) filterTags.push({ label: '카테고리 제외', value: filters.category_not_name, negative: true });
   if (filters.status_name) filterTags.push({ label: '상태', value: filters.status_name });
+  if (filters.status_not_name) filterTags.push({ label: '상태 제외', value: filters.status_not_name, negative: true });
   if (filters.assigned_to_name) filterTags.push({ label: '사용자', value: filters.assigned_to_name });
+  if (filters.assigned_to_not_name) filterTags.push({ label: '사용자 제외', value: filters.assigned_to_not_name, negative: true });
   if (filters.department_name) filterTags.push({ label: '부서', value: filters.department_name });
+  if (filters.department_not_name) filterTags.push({ label: '부서 제외', value: filters.department_not_name, negative: true });
+  if (filters.cost_min) filterTags.push({ label: '최소금액', value: `${Number(filters.cost_min).toLocaleString()}원` });
+  if (filters.cost_max) filterTags.push({ label: '최대금액', value: `${Number(filters.cost_max).toLocaleString()}원` });
+  if (filters.purchase_after) filterTags.push({ label: '구매일 이후', value: filters.purchase_after });
+  if (filters.purchase_before) filterTags.push({ label: '구매일 이전', value: filters.purchase_before });
+  if (filters.warranty_before) filterTags.push({ label: '보증만료 이전', value: filters.warranty_before });
   if (filters.search) filterTags.push({ label: '검색어', value: filters.search });
 
   return (
@@ -229,8 +238,8 @@ export default function AssetSearch() {
           {/* 필터 태그 + 결과 수 */}
           <div className="flex flex-wrap items-center gap-2 mb-4">
             {filterTags.map((tag, i) => (
-              <span key={i} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 text-xs font-medium px-3 py-1 rounded-full border border-indigo-200">
-                <span className="text-indigo-400">{tag.label}</span>
+              <span key={i} className={`inline-flex items-center gap-1 text-xs font-medium px-3 py-1 rounded-full border ${tag.negative ? 'bg-red-50 text-red-700 border-red-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'}`}>
+                <span className={tag.negative ? 'text-red-400' : 'text-indigo-400'}>{tag.label}</span>
                 <span>{tag.value}</span>
               </span>
             ))}

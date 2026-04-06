@@ -3,7 +3,10 @@ const router = express.Router();
 const pool = require('../config/database');
 const { authenticate, authorize, isManagerOrAdmin } = require('../middleware/auth');
 
+const Anthropic = require('@anthropic-ai/sdk');
+
 const AUTH_SERVER_URL = process.env.AUTH_SERVER_URL || 'http://localhost:8090';
+const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
 
 // 카테고리 목록
 router.get('/categories', authenticate, async (req, res) => {
@@ -43,132 +46,137 @@ router.get('/departments', authenticate, async (req, res) => {
   }
 });
 
-// 자산 통합 검색 (자연어 쿼리 파싱)
+// AI 기반 자연어 파싱
+async function parseWithAI(queryText, context) {
+  if (!anthropic) return null;
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      messages: [{ role: 'user', content: queryText }],
+      system: `You are an asset search filter parser for a Korean company's asset management system.
+Convert the user's natural language query into a JSON filter object.
+
+Available filters:
+- category: one of [${context.categories.map(c => c.name).join(', ')}]
+- category_not: exclude this category
+- status: one of [${context.statuses.map(s => `${s.code}(${s.name})`).join(', ')}] — use the code value
+- status_not: exclude this status code
+- department: one of [${context.departments.map(d => `${d.id}:${d.name}`).join(', ')}] — use the id value
+- department_not: exclude this department id
+- user: one of [${context.users.map(u => `${u.id}:${u.name}`).join(', ')}] — use the id value
+- user_not: exclude this user id
+- search: free text to match against asset name, code, or serial number
+- cost_min: minimum purchase cost (number)
+- cost_max: maximum purchase cost (number)
+- purchase_after: purchased after this date (YYYY-MM-DD)
+- purchase_before: purchased before this date (YYYY-MM-DD)
+- warranty_before: warranty expires before this date (YYYY-MM-DD)
+
+Today is ${new Date().toISOString().split('T')[0]}.
+"올해" means year ${new Date().getFullYear()}.
+
+Respond with ONLY a JSON object. No explanation. Use only the filters needed.
+If the query is unclear, use your best judgment. Example:
+Input: "노트북 폐기 외의 목록"
+Output: {"category":"노트북","status_not":"disposed"}`
+    });
+    const text = msg.content[0].text.trim();
+    return JSON.parse(text);
+  } catch (e) {
+    console.error('AI parse error:', e.message);
+    return null;
+  }
+}
+
+// 자산 통합 검색 (AI 자연어 파싱 + 키워드 폴백)
 router.post('/search', authenticate, async (req, res) => {
   try {
     const { query = '', page = 1, limit = 20 } = req.body;
     const token = req.headers.authorization?.split(' ')[1];
+    const searchText = query.trim();
 
-    let remaining = query.trim();
-    const filters = {};
-
-    if (remaining) {
-      // 공백 제거 버전으로도 매칭 (DB: "사용 중" ↔ 입력: "사용중")
-      const noSpace = (s) => s.replace(/\s/g, '');
-      const matchAndRemove = (name) => {
-        if (remaining.includes(name)) {
-          remaining = remaining.replace(name, '').trim();
-          return true;
-        }
-        // 공백 제거 후 매칭 시도
-        const remainNoSpace = noSpace(remaining);
-        const nameNoSpace = noSpace(name);
-        if (remainNoSpace.includes(nameNoSpace)) {
-          // 원본에서 공백 무시하고 해당 부분 제거
-          const pattern = nameNoSpace.split('').join('\\s*');
-          remaining = remaining.replace(new RegExp(pattern), '').trim();
-          return true;
-        }
-        return false;
-      };
-
-      // 1. 카테고리 매칭
-      const [categories] = await pool.query('SELECT id, name FROM asset_categories WHERE name IS NOT NULL');
-      categories.sort((a, b) => b.name.length - a.name.length);
-      for (const cat of categories) {
-        if (matchAndRemove(cat.name)) {
-          filters.category_id = cat.id;
-          filters.category_name = cat.name;
-          break;
-        }
-      }
-
-      // 2. 상태 매칭
-      const [statusCodes] = await pool.query(
-        "SELECT code, name FROM common_codes WHERE group_code = 'ASSET_STATUS' AND is_active = 1"
+    // 빈 검색어: 전체 반환
+    if (!searchText) {
+      const offset = (page - 1) * limit;
+      const [countResult] = await pool.query('SELECT COUNT(*) as total FROM assets');
+      const total = countResult[0].total;
+      const [assets] = await pool.query(
+        `SELECT a.*, c.name as category_name FROM assets a LEFT JOIN asset_categories c ON a.category_id = c.id ORDER BY a.updated_at DESC LIMIT ? OFFSET ?`,
+        [Number(limit), Number(offset)]
       );
-      statusCodes.sort((a, b) => b.name.length - a.name.length);
-      for (const sc of statusCodes) {
-        if (matchAndRemove(sc.name)) {
-          filters.status = sc.code;
-          filters.status_name = sc.name;
-          break;
-        }
-      }
-
-      // 3. 사용자 매칭
-      try {
-        const userRes = await fetch(`${AUTH_SERVER_URL}/api/users`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const users = await userRes.json();
-        if (Array.isArray(users)) {
-          users.sort((a, b) => b.name.length - a.name.length);
-          for (const u of users) {
-            if (u.name && matchAndRemove(u.name)) {
-              filters.assigned_to = u.id;
-              filters.assigned_to_name = u.name;
-              break;
-            }
-          }
-        }
-      } catch (e) {
-        // Auth 서버 연결 실패 시 사용자 매칭 건너뜀
-      }
-
-      // 4. 부서 매칭
-      try {
-        const deptRes = await fetch(`${AUTH_SERVER_URL}/api/departments`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const departments = await deptRes.json();
-        if (Array.isArray(departments)) {
-          departments.sort((a, b) => b.name.length - a.name.length);
-          for (const d of departments) {
-            if (d.name && matchAndRemove(d.name)) {
-              filters.department_id = d.id;
-              filters.department_name = d.name;
-              break;
-            }
-          }
-        }
-      } catch (e) {
-        // Auth 서버 연결 실패 시 부서 매칭 건너뜀
-      }
-
-      // 5. 자연어 노이즈 단어 제거
-      const stopWords = ['조회', '검색', '보여줘', '보여줘', '찾아줘', '찾기', '알려줘', '목록', '리스트', '전체', '있는', '중인', '하는'];
-      for (const sw of stopWords) {
-        remaining = remaining.replace(new RegExp(sw, 'g'), '');
-      }
-      remaining = remaining.replace(/\s+/g, ' ').trim();
+      return res.json({ data: assets, filters: {}, pagination: { total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / limit) } });
     }
 
-    // SQL 쿼리 빌드
-    let sqlQuery = `
-      SELECT a.*, c.name as category_name
-      FROM assets a
-      LEFT JOIN asset_categories c ON a.category_id = c.id
-      WHERE 1=1
-    `;
+    // 컨텍스트 수집 (AI에게 전달할 목록)
+    const [categories] = await pool.query('SELECT id, name FROM asset_categories');
+    const [statuses] = await pool.query("SELECT code, name FROM common_codes WHERE group_code = 'ASSET_STATUS' AND is_active = 1");
+    let users = [], departments = [];
+    try {
+      const [uRes, dRes] = await Promise.all([
+        fetch(`${AUTH_SERVER_URL}/api/users`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${AUTH_SERVER_URL}/api/departments`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      if (uRes.ok) users = await uRes.json();
+      if (dRes.ok) departments = await dRes.json();
+    } catch (e) {}
+
+    // AI 파싱 시도
+    const ai = await parseWithAI(searchText, { categories, statuses, users: Array.isArray(users) ? users : [], departments: Array.isArray(departments) ? departments : [] });
+
+    const filters = {};
+    let sqlQuery = `SELECT a.*, c.name as category_name FROM assets a LEFT JOIN asset_categories c ON a.category_id = c.id WHERE 1=1`;
     const params = [];
 
-    if (filters.category_id) { sqlQuery += ' AND a.category_id = ?'; params.push(filters.category_id); }
-    if (filters.status) { sqlQuery += ' AND a.status = ?'; params.push(filters.status); }
-    if (filters.assigned_to) { sqlQuery += ' AND a.assigned_to = ?'; params.push(filters.assigned_to); }
-    if (filters.department_id) { sqlQuery += ' AND a.department_id = ?'; params.push(filters.department_id); }
-    if (remaining) {
-      sqlQuery += ' AND (a.name LIKE ? OR a.asset_code LIKE ? OR a.serial_number LIKE ?)';
-      const s = `%${remaining}%`;
-      params.push(s, s, s);
+    if (ai) {
+      // --- AI 결과로 SQL 조립 ---
+      if (ai.category) {
+        const cat = categories.find(c => c.name === ai.category);
+        if (cat) { sqlQuery += ' AND a.category_id = ?'; params.push(cat.id); filters.category_name = cat.name; }
+      }
+      if (ai.category_not) {
+        const cat = categories.find(c => c.name === ai.category_not);
+        if (cat) { sqlQuery += ' AND a.category_id != ?'; params.push(cat.id); filters.category_not_name = cat.name; }
+      }
+      if (ai.status) { sqlQuery += ' AND a.status = ?'; params.push(ai.status); const s = statuses.find(s => s.code === ai.status); if (s) filters.status_name = s.name; }
+      if (ai.status_not) { sqlQuery += ' AND a.status != ?'; params.push(ai.status_not); const s = statuses.find(s => s.code === ai.status_not); if (s) filters.status_not_name = s.name; }
+      if (ai.department) { sqlQuery += ' AND a.department_id = ?'; params.push(Number(ai.department)); const d = departments.find(d => d.id === Number(ai.department)); if (d) filters.department_name = d.name; }
+      if (ai.department_not) { sqlQuery += ' AND a.department_id != ?'; params.push(Number(ai.department_not)); const d = departments.find(d => d.id === Number(ai.department_not)); if (d) filters.department_not_name = d.name; }
+      if (ai.user) { sqlQuery += ' AND a.assigned_to = ?'; params.push(Number(ai.user)); const u = users.find(u => u.id === Number(ai.user)); if (u) filters.assigned_to_name = u.name; }
+      if (ai.user_not) { sqlQuery += ' AND a.assigned_to != ?'; params.push(Number(ai.user_not)); const u = users.find(u => u.id === Number(ai.user_not)); if (u) filters.assigned_to_not_name = u.name; }
+      if (ai.search) { sqlQuery += ' AND (a.name LIKE ? OR a.asset_code LIKE ? OR a.serial_number LIKE ?)'; const s = `%${ai.search}%`; params.push(s, s, s); filters.search = ai.search; }
+      if (ai.cost_min) { sqlQuery += ' AND a.purchase_cost >= ?'; params.push(Number(ai.cost_min)); filters.cost_min = ai.cost_min; }
+      if (ai.cost_max) { sqlQuery += ' AND a.purchase_cost <= ?'; params.push(Number(ai.cost_max)); filters.cost_max = ai.cost_max; }
+      if (ai.purchase_after) { sqlQuery += ' AND a.purchase_date >= ?'; params.push(ai.purchase_after); filters.purchase_after = ai.purchase_after; }
+      if (ai.purchase_before) { sqlQuery += ' AND a.purchase_date <= ?'; params.push(ai.purchase_before); filters.purchase_before = ai.purchase_before; }
+      if (ai.warranty_before) { sqlQuery += ' AND a.warranty_expiry <= ?'; params.push(ai.warranty_before); filters.warranty_before = ai.warranty_before; }
+      filters._ai = true;
+    } else {
+      // --- 폴백: 키워드 파싱 ---
+      let remaining = searchText;
+      const noSpace = (s) => s.replace(/\s/g, '');
+      const matchAndRemove = (name) => {
+        if (remaining.includes(name)) { remaining = remaining.replace(name, '').trim(); return true; }
+        const rn = noSpace(remaining), nn = noSpace(name);
+        if (rn.includes(nn)) { remaining = remaining.replace(new RegExp(nn.split('').join('\\s*')), '').trim(); return true; }
+        return false;
+      };
+      categories.sort((a, b) => b.name.length - a.name.length);
+      for (const c of categories) { if (matchAndRemove(c.name)) { sqlQuery += ' AND a.category_id = ?'; params.push(c.id); filters.category_name = c.name; break; } }
+      statuses.sort((a, b) => b.name.length - a.name.length);
+      for (const s of statuses) { if (matchAndRemove(s.name)) { sqlQuery += ' AND a.status = ?'; params.push(s.code); filters.status_name = s.name; break; } }
+      if (Array.isArray(users)) { users.sort((a, b) => b.name.length - a.name.length); for (const u of users) { if (u.name && matchAndRemove(u.name)) { sqlQuery += ' AND a.assigned_to = ?'; params.push(u.id); filters.assigned_to_name = u.name; break; } } }
+      if (Array.isArray(departments)) { departments.sort((a, b) => b.name.length - a.name.length); for (const d of departments) { if (d.name && matchAndRemove(d.name)) { sqlQuery += ' AND a.department_id = ?'; params.push(d.id); filters.department_name = d.name; break; } } }
+      const stopWords = ['조회','검색','보여줘','찾아줘','찾기','알려줘','목록','리스트','전체','있는','중인','하는'];
+      for (const sw of stopWords) { remaining = remaining.replace(new RegExp(sw, 'g'), ''); }
+      remaining = remaining.replace(/\s+/g, ' ').trim();
+      if (remaining) { sqlQuery += ' AND (a.name LIKE ? OR a.asset_code LIKE ? OR a.serial_number LIKE ?)'; const s = `%${remaining}%`; params.push(s, s, s); filters.search = remaining; }
     }
 
-    // 전체 개수
     const countQuery = sqlQuery.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) as total FROM');
     const [countResult] = await pool.query(countQuery, params);
     const total = countResult[0].total;
 
-    // 페이지네이션
     const offset = (page - 1) * limit;
     sqlQuery += ' ORDER BY a.updated_at DESC LIMIT ? OFFSET ?';
     params.push(Number(limit), Number(offset));
@@ -178,12 +186,7 @@ router.post('/search', authenticate, async (req, res) => {
     res.json({
       data: assets,
       filters,
-      pagination: {
-        total,
-        page: Number(page),
-        limit: Number(limit),
-        totalPages: Math.ceil(total / limit),
-      },
+      pagination: { total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / limit) },
     });
   } catch (err) {
     console.error('Asset search error:', err);
