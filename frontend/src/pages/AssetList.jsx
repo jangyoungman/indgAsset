@@ -108,13 +108,13 @@ export default function AssetList() {
               <button
                 onClick={handleBulkDelete}
                 disabled={selected.size === 0 || deleting}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                className="hidden lg:inline-flex bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
               >
                 {deleting ? '처리 중...' : `선택 삭제${selected.size > 0 ? ` (${selected.size})` : ''}`}
               </button>
             )}
             {isAdmin && (
-              <Link to="/assets/bulk-upload" className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition">
+              <Link to="/assets/bulk-upload" className="hidden lg:inline-flex bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition">
                 일괄 등록
               </Link>
             )}
@@ -154,7 +154,33 @@ export default function AssetList() {
         <div className="text-center py-16 text-gray-400">로딩 중...</div>
       ) : (
         <>
-          <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
+          {/* 모바일 카드 리스트 */}
+          <div className="lg:hidden flex flex-col gap-3">
+            {sortedAssets.map(a => (
+              <Link key={a.id} to={`/assets/${a.id}`} className="block bg-white rounded-xl shadow-sm p-4 active:bg-gray-50 transition-colors">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <span className="text-sm font-semibold text-gray-900 leading-tight">{a.name}</span>
+                  <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${getCodeColor('ASSET_STATUS', a.status)}`}>
+                    {getCodeName('ASSET_STATUS', a.status)}
+                  </span>
+                </div>
+                <div className="font-mono text-xs text-indigo-600 mb-2">{a.asset_code}</div>
+                <div className="flex items-center gap-1.5 text-xs text-gray-500 flex-wrap">
+                  <span>{a.category_name}</span>
+                  <span className="text-gray-300">·</span>
+                  <span>{deptName(a.department_id)}</span>
+                  <span className="text-gray-300">·</span>
+                  <span>{userName(a.assigned_to)}</span>
+                </div>
+              </Link>
+            ))}
+            {assets.length === 0 && (
+              <div className="text-center py-8 text-gray-400">자산이 없습니다.</div>
+            )}
+          </div>
+
+          {/* PC 테이블 */}
+          <div className="hidden lg:block bg-white rounded-xl shadow-sm overflow-x-auto">
             <table className="w-full min-w-[800px]">
               <thead className="bg-gray-50">
                 <tr>

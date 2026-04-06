@@ -1,5 +1,5 @@
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCode } from '../contexts/CodeContext';
 import { useLookup } from '../hooks/useLookup';
@@ -70,6 +70,19 @@ export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const mainRef = useRef(null);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+      // iOS에서 렌더링 후에도 스크롤 리셋
+      requestAnimationFrame(() => {
+        if (mainRef.current) mainRef.current.scrollTop = 0;
+        window.scrollTo(0, 0);
+      });
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     const fetchNotifications = () => {
@@ -110,14 +123,14 @@ export default function Layout() {
       {/* Mobile overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`bg-gray-900 flex flex-col flex-shrink-0 transition-transform duration-200 ${sidebarOpen ? 'w-60' : 'w-16'} fixed md:relative z-50 inset-y-0 left-0 overflow-y-auto ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
+        className={`bg-gray-900 flex flex-col flex-shrink-0 transition-transform duration-200 ${sidebarOpen ? 'w-60' : 'w-16'} fixed lg:relative z-50 inset-y-0 left-0 overflow-y-auto ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
       >
         {/* Top: App name + collapse toggle */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-gray-800">
@@ -246,7 +259,7 @@ export default function Layout() {
         <header className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden text-gray-500 hover:text-gray-700"
+            className="lg:hidden text-gray-500 hover:text-gray-700"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="3" y1="6" x2="21" y2="6" />
@@ -254,7 +267,7 @@ export default function Layout() {
               <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
           </button>
-          <div className="hidden md:block" />
+          <div className="hidden lg:block" />
           <div className="flex items-center gap-4">
             {/* Bell icon with unread badge */}
             <Link to="/notifications" className="relative text-gray-500 hover:text-gray-700 transition-colors">
@@ -277,7 +290,7 @@ export default function Layout() {
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-auto bg-gray-50">
+        <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50">
           <Outlet />
         </main>
       </div>
