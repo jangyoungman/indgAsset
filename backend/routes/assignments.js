@@ -3,6 +3,9 @@ const router = express.Router();
 const pool = require('../config/database');
 const { authenticate, isManagerOrAdmin } = require('../middleware/auth');
 const { notifyUser } = require('./notifications');
+const { sendRequestNotification, sendApprovalNotification } = require('../config/mailer');
+
+const AUTH_SERVER_URL = process.env.AUTH_SERVER_URL || 'http://localhost:8090';
 
 // 대여 요청 (일반 사용자)
 router.post('/request', authenticate, async (req, res) => {
@@ -31,10 +34,20 @@ router.post('/request', authenticate, async (req, res) => {
       [result.insertId, req.user.id, request_note]
     );
 
-    // 알림: user_id는 JWT에서 가져온 정보 기반으로 처리
-    // 부서장/관리자 알림은 approval_workflows를 통해 관리
-
     await conn.commit();
+
+    // 관리자에게 대여 요청 이메일 발송 (비동기, 응답 차단하지 않음)
+    const asset = assets[0];
+    const token = req.headers.authorization?.split(' ')[1];
+    sendRequestNotification({
+      requesterName: req.user.name,
+      assetName: asset.name,
+      assetCode: asset.asset_code,
+      expectedReturn: expected_return,
+      requestNote: request_note,
+      token,
+    });
+
     res.status(201).json({ id: result.insertId, message: '대여 요청이 접수되었습니다.' });
   } catch (err) {
     await conn.rollback();
@@ -98,7 +111,29 @@ router.put('/:id/approve', authenticate, isManagerOrAdmin, async (req, res) => {
        JSON.stringify({ assignment_id: req.params.id, response_note })]
     );
 
+    // 자산 정보 조회 (이메일용)
+    const [assetRows] = await conn.query('SELECT name, asset_code FROM assets WHERE id = ?', [assignment.asset_id]);
+
     await conn.commit();
+
+    // 요청자에게 승인/거절 이메일 발송 (비동기)
+    const token = req.headers.authorization?.split(' ')[1];
+    try {
+      const userRes = await fetch(`${AUTH_SERVER_URL}/api/users`, { headers: { Authorization: `Bearer ${token}` } });
+      const users = await userRes.json();
+      const requester = Array.isArray(users) ? users.find(u => u.id === assignment.user_id) : null;
+      if (requester && assetRows[0]) {
+        sendApprovalNotification({
+          requesterEmail: requester.email,
+          requesterName: requester.name,
+          assetName: assetRows[0].name,
+          assetCode: assetRows[0].asset_code,
+          status,
+          responseNote: response_note,
+        });
+      }
+    } catch (e) { console.error('[Mail] 사용자 조회 실패:', e.message); }
+
     res.json({ message: `대여 요청이 ${statusText}되었습니다.` });
   } catch (err) {
     await conn.rollback();
