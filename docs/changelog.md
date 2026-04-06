@@ -1,5 +1,94 @@
 # 자산관리 시스템 변경 이력
 
+## 2026-04-06
+
+### 모바일 UI 개선
+
+모바일 환경에서의 사용성을 개선하였습니다.
+
+**변경 파일:**
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| frontend/public/index.html | viewport에 `maximum-scale=1, user-scalable=no` 추가 (핀치 줌 방지) |
+| frontend/src/components/Layout.jsx | 반응형 breakpoint `md` → `lg`로 변경 (태블릿 대응), 페이지 이동 시 스크롤 위치 리셋 |
+| frontend/src/index.css | 수평 스크롤 방지 CSS (`overflow-x: hidden`, `touch-action: pan-y`) |
+| frontend/src/pages/AssetList.jsx | 모바일 카드 리스트 UI 추가 (`lg:hidden`), 관리 버튼 모바일 숨김 |
+
+---
+
+### 자연어 자산 검색 (AI 기반 메인 페이지)
+
+메인 페이지를 대시보드에서 **자연어 자산 검색** 페이지로 변경. textarea에 자연어를 입력하면 AI(Claude Haiku)가 검색 조건을 자동 생성하여 자산을 조회합니다.
+
+**아키텍처:**
+
+```
+사용자 입력 → 백엔드 POST /api/assets/search
+  → Anthropic Claude Haiku API로 자연어 파싱
+  → 구조화된 JSON 필터 반환 (카테고리, 상태, 부서, 사용자, 금액, 날짜 등)
+  → SQL WHERE 조건 조립 → 결과 반환
+  → AI 호출 실패 시 키워드 기반 파싱으로 자동 폴백
+```
+
+**지원하는 검색 조건:**
+
+| 유형 | 예시 입력 | 생성되는 조건 |
+|------|-----------|---------------|
+| 카테고리 | "노트북" | category_id = ? |
+| 상태 | "사용중인 장비" | status = 'in_use' |
+| 부정 조건 | "폐기 외의 노트북" | category_id = ? AND status != 'disposed' |
+| 부서 | "IT팀 장비" | department_id = ? |
+| 부서 제외 | "IT팀 빼고" | department_id != ? |
+| 사용자 | "홍길동이 쓰는" | assigned_to = ? |
+| 금액 범위 | "100만원 이상" | purchase_cost >= 1000000 |
+| 날짜 범위 | "올해 구매한" | purchase_date >= '2026-01-01' |
+| 보증 만료 | "보증 만료 임박" | warranty_expiry <= ? |
+| 텍스트 검색 | "ThinkPad" | name/asset_code/serial_number LIKE '%ThinkPad%' |
+
+**UI 구성:**
+
+- 상단: textarea (여러 줄 입력, Enter 검색 / Shift+Enter 줄바꿈)
+- 중단: 탭 형태 도움말
+  - **자연어 검색 탭** (기본): 검색 예시 테이블 + AI 폴백 안내 문구
+  - **키워드 검색 탭**: 카테고리/상태/부서/사용자 칩 클릭으로 입력
+- 하단: 검색 결과 목록 (AssetList와 동일 — PC 테이블 + 모바일 카드, 정렬, 페이지네이션, 상세 링크, 일괄 삭제)
+- 검색 실행 시 도움말 탭 숨김, 필터 태그 + 결과 건수 표시
+- 부정 조건 필터 태그는 빨간색으로 구분
+
+**키워드 폴백 (AI 실패 시):**
+
+AI API 호출 실패 시 기존 키워드 매칭 방식으로 자동 전환됩니다. 카테고리 → 상태 → 사용자 → 부서 순서로 DB에 있는 이름과 매칭하고, 공백 무시 매칭(예: "사용중" ↔ "사용 중")과 노이즈 단어 제거(조회, 검색, 보여줘 등)를 지원합니다. 단, 부정 조건/금액/날짜 범위는 지원하지 않습니다.
+
+**라우팅 변경:**
+
+| 경로 | 변경 전 | 변경 후 |
+|------|---------|---------|
+| `/` | Dashboard (admin/manager) | AssetSearch (모든 역할) |
+| `/dashboard` | — | Dashboard (admin/manager) |
+
+**변경 파일:**
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| frontend/src/pages/AssetSearch.jsx | 신규 — 자연어 검색 페이지 (textarea, 탭 도움말, 결과 목록) |
+| frontend/src/App.jsx | AssetSearch import, `/` → AssetSearch, `/dashboard` → Dashboard |
+| frontend/src/components/Layout.jsx | 검색 아이콘 추가, navItems에 자산 검색/대시보드 분리 |
+| backend/routes/assets.js | `POST /api/assets/search` 엔드포인트 (AI 파싱 + 키워드 폴백) |
+| backend/package.json | `@anthropic-ai/sdk` 패키지 추가 |
+| EC2 backend/.env | `ANTHROPIC_API_KEY` 환경변수 추가 |
+
+**외부 서비스:**
+
+| 항목 | 내용 |
+|------|------|
+| API | Anthropic Claude API (claude-haiku-4-5-20251001) |
+| 계정 | Anthropic Console (회사 계정, 법인카드 결제) |
+| 요금 | 종량제 ~$0.001/건, Build 플랜 $5/월 |
+| API 키 이름 | indg-common-search |
+
+---
+
 ## 2026-04-02
 
 ### 공통코드 시스템 추가
