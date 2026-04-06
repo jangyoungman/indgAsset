@@ -121,7 +121,7 @@ export default function UserList() {
   const labelClass = 'block text-sm font-medium text-gray-600 mb-1.5';
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-semibold text-gray-900">사용자 관리</h1>
         <button onClick={openCreate}
@@ -133,7 +133,48 @@ export default function UserList() {
       {loading ? (
         <div className="text-center py-16 text-gray-400">로딩 중...</div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <>
+        {/* 모바일 카드 리스트 */}
+        <div className="lg:hidden flex flex-col gap-3">
+          {sortedUsers.map(u => (
+            <div key={u.id} className="bg-white rounded-xl shadow-sm p-4">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div>
+                  <span className="text-sm font-semibold text-gray-900">{u.name}</span>
+                  <div className="text-xs text-gray-400 mt-0.5">{u.email}</div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getCodeColor('USER_ROLE', u.role)}`}>
+                    {getCodeName('USER_ROLE', u.role)}
+                  </span>
+                  {u.login_fail_count >= 5 ? (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700">잠김</span>
+                  ) : (
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {u.is_active ? '활성' : '비활성'}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="text-xs text-gray-500 mb-3">{deptName(u.department_id)}{u.phone ? ` · ${u.phone}` : ''}</div>
+              <div className="flex gap-3 text-xs">
+                <button onClick={() => openEdit(u)} className="text-indigo-600 font-medium">수정</button>
+                <button onClick={() => toggleActive(u)} className={u.is_active ? 'text-red-500 font-medium' : 'text-emerald-600 font-medium'}>
+                  {u.is_active ? '비활성화' : '활성화'}
+                </button>
+                {u.login_fail_count >= 5 && (
+                  <button onClick={() => unlockUser(u)} className="text-amber-600 font-medium">잠금해제</button>
+                )}
+                <button onClick={() => resetUserPw(u)} className="text-gray-500 font-medium">PW초기화</button>
+              </div>
+            </div>
+          ))}
+          {users.length === 0 && (
+            <div className="text-center py-8 text-gray-400">사용자가 없습니다.</div>
+          )}
+        </div>
+
+        <div className="hidden lg:block bg-white rounded-xl shadow-sm overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
@@ -196,6 +237,7 @@ export default function UserList() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {/* Modal */}

@@ -59,7 +59,7 @@ export default function DepartmentManagement() {
   if (loading) return <div className="p-8 text-center text-gray-400">로딩 중...</div>;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-semibold text-gray-900">부서 관리</h1>
         <button onClick={openCreate}
@@ -68,7 +68,23 @@ export default function DepartmentManagement() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      {/* 모바일 카드 리스트 */}
+      <div className="lg:hidden flex flex-col gap-3">
+        {departments.map(d => (
+          <div key={d.id} className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between">
+            <div>
+              <span className="text-sm font-semibold text-gray-900">{d.name}</span>
+              <span className="text-xs font-mono text-gray-400 ml-2">{d.code}</span>
+            </div>
+            <button onClick={() => openEdit(d)} className="text-indigo-600 text-xs font-medium">수정</button>
+          </div>
+        ))}
+        {departments.length === 0 && (
+          <div className="text-center py-8 text-gray-400">부서가 없습니다.</div>
+        )}
+      </div>
+
+      <div className="hidden lg:block bg-white rounded-xl shadow-sm overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>

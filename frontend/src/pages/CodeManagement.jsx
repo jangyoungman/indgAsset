@@ -89,7 +89,7 @@ export default function CodeManagement() {
   if (loading) return <div className="p-8 text-center text-gray-400">로딩 중...</div>;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-semibold text-gray-900">공통코드 관리</h1>
         <button onClick={openCreate}
@@ -98,15 +98,15 @@ export default function CodeManagement() {
         </button>
       </div>
 
-      <div className="flex gap-6">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
         {/* 왼쪽: 그룹 목록 */}
-        <div className="w-52 flex-shrink-0">
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="w-full lg:w-52 lg:flex-shrink-0">
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden flex lg:flex-col overflow-x-auto lg:overflow-x-visible">
             {groups.map(group => (
               <button
                 key={group}
                 onClick={() => setActiveGroup(group)}
-                className={`w-full text-left px-4 py-3 text-sm border-b border-gray-100 last:border-0 transition ${
+                className={`whitespace-nowrap lg:w-full text-left px-4 py-3 text-sm border-b border-gray-100 last:border-0 transition ${
                   activeGroup === group
                     ? 'bg-indigo-50 text-indigo-700 font-medium'
                     : 'text-gray-600 hover:bg-gray-50'
@@ -121,7 +121,40 @@ export default function CodeManagement() {
 
         {/* 오른쪽: 코드 테이블 */}
         <div className="flex-1">
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          {/* 모바일 카드 리스트 */}
+          <div className="lg:hidden flex flex-col gap-3">
+            {currentCodes.map(item => (
+              <div key={item.id} className={`bg-white rounded-xl shadow-sm p-4 ${!item.is_active ? 'opacity-50' : ''}`}>
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <div>
+                    <span className="text-sm font-semibold text-gray-900">{item.name}</span>
+                    <span className="text-xs font-mono text-gray-400 ml-2">{item.code}</span>
+                  </div>
+                  <button
+                    onClick={() => handleToggle(item)}
+                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${item.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}
+                  >
+                    {item.is_active ? '활성' : '비활성'}
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                  <span>순서: {item.sort_order}</span>
+                  {item.description && (
+                    <>
+                      <span className="text-gray-300">·</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${item.description}`}>미리보기</span>
+                    </>
+                  )}
+                </div>
+                <button onClick={() => openEdit(item)} className="text-indigo-600 text-xs font-medium">수정</button>
+              </div>
+            ))}
+            {currentCodes.length === 0 && (
+              <div className="text-center py-8 text-gray-400">코드가 없습니다.</div>
+            )}
+          </div>
+
+          <div className="hidden lg:block bg-white rounded-xl shadow-sm overflow-hidden">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
