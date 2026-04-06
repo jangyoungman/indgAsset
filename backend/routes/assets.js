@@ -43,6 +43,135 @@ router.get('/departments', authenticate, async (req, res) => {
   }
 });
 
+// 자산 통합 검색 (자연어 쿼리 파싱)
+router.post('/search', authenticate, async (req, res) => {
+  try {
+    const { query = '', page = 1, limit = 20 } = req.body;
+    const token = req.headers.authorization?.split(' ')[1];
+
+    let remaining = query.trim();
+    const filters = {};
+
+    if (remaining) {
+      // 1. 카테고리 매칭
+      const [categories] = await pool.query('SELECT id, name FROM asset_categories WHERE name IS NOT NULL');
+      categories.sort((a, b) => b.name.length - a.name.length);
+      for (const cat of categories) {
+        if (remaining.includes(cat.name)) {
+          filters.category_id = cat.id;
+          filters.category_name = cat.name;
+          remaining = remaining.replace(cat.name, '').trim();
+          break;
+        }
+      }
+
+      // 2. 상태 매칭
+      const [statusCodes] = await pool.query(
+        "SELECT code, name FROM common_codes WHERE group_code = 'ASSET_STATUS' AND is_active = 1"
+      );
+      statusCodes.sort((a, b) => b.name.length - a.name.length);
+      for (const sc of statusCodes) {
+        if (remaining.includes(sc.name)) {
+          filters.status = sc.code;
+          filters.status_name = sc.name;
+          remaining = remaining.replace(sc.name, '').trim();
+          break;
+        }
+      }
+
+      // 3. 사용자 매칭
+      try {
+        const userRes = await fetch(`${AUTH_SERVER_URL}/api/users`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const users = await userRes.json();
+        if (Array.isArray(users)) {
+          users.sort((a, b) => b.name.length - a.name.length);
+          for (const u of users) {
+            if (u.name && remaining.includes(u.name)) {
+              filters.assigned_to = u.id;
+              filters.assigned_to_name = u.name;
+              remaining = remaining.replace(u.name, '').trim();
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        // Auth 서버 연결 실패 시 사용자 매칭 건너뜀
+      }
+
+      // 4. 부서 매칭
+      try {
+        const deptRes = await fetch(`${AUTH_SERVER_URL}/api/departments`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const departments = await deptRes.json();
+        if (Array.isArray(departments)) {
+          departments.sort((a, b) => b.name.length - a.name.length);
+          for (const d of departments) {
+            if (d.name && remaining.includes(d.name)) {
+              filters.department_id = d.id;
+              filters.department_name = d.name;
+              remaining = remaining.replace(d.name, '').trim();
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        // Auth 서버 연결 실패 시 부서 매칭 건너뜀
+      }
+
+      // 5. 남은 텍스트 정리
+      remaining = remaining.replace(/\s+/g, ' ').trim();
+    }
+
+    // SQL 쿼리 빌드
+    let sqlQuery = `
+      SELECT a.*, c.name as category_name
+      FROM assets a
+      LEFT JOIN asset_categories c ON a.category_id = c.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (filters.category_id) { sqlQuery += ' AND a.category_id = ?'; params.push(filters.category_id); }
+    if (filters.status) { sqlQuery += ' AND a.status = ?'; params.push(filters.status); }
+    if (filters.assigned_to) { sqlQuery += ' AND a.assigned_to = ?'; params.push(filters.assigned_to); }
+    if (filters.department_id) { sqlQuery += ' AND a.department_id = ?'; params.push(filters.department_id); }
+    if (remaining) {
+      sqlQuery += ' AND (a.name LIKE ? OR a.asset_code LIKE ? OR a.serial_number LIKE ?)';
+      const s = `%${remaining}%`;
+      params.push(s, s, s);
+    }
+
+    // 전체 개수
+    const countQuery = sqlQuery.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) as total FROM');
+    const [countResult] = await pool.query(countQuery, params);
+    const total = countResult[0].total;
+
+    // 페이지네이션
+    const offset = (page - 1) * limit;
+    sqlQuery += ' ORDER BY a.updated_at DESC LIMIT ? OFFSET ?';
+    params.push(Number(limit), Number(offset));
+
+    const [assets] = await pool.query(sqlQuery, params);
+
+    res.json({
+      data: assets,
+      filters,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (err) {
+    console.error('Asset search error:', err);
+    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+  }
+});
+
 // 자산 목록 조회 (필터링/검색/페이지네이션)
 router.get('/', authenticate, async (req, res) => {
   try {
