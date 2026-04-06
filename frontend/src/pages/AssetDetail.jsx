@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import api from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLookup } from '../hooks/useLookup';
@@ -8,6 +8,9 @@ import { useCode } from '../contexts/CodeContext';
 export default function AssetDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const backTo = location.state?.from || '/assets';
+  const backLabel = backTo === '/' ? '← 자산 검색' : '← 자산 목록';
   const { isAdmin, isManagerOrAdmin } = useAuth();
   const { userName, deptName } = useLookup();
   const { getCodeName, getCodeColor, getCodeList } = useCode();
@@ -70,9 +73,9 @@ export default function AssetDetail() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <button onClick={() => navigate('/assets')}
+          <button onClick={() => navigate(backTo)}
             className="text-sm text-gray-500 hover:text-gray-700 transition mb-1">
-            ← 자산 목록
+            {backLabel}
           </button>
           <h1 className="text-xl font-semibold text-gray-900">{asset.name}</h1>
         </div>

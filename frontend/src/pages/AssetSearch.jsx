@@ -281,7 +281,7 @@ export default function AssetSearch() {
               {/* 모바일 카드 리스트 */}
               <div className="lg:hidden flex flex-col gap-3">
                 {sortedAssets.map(a => (
-                  <Link key={a.id} to={`/assets/${a.id}`} className="block bg-white rounded-xl shadow-sm p-4 active:bg-gray-50 transition-colors">
+                  <Link key={a.id} to={`/assets/${a.id}`} state={{ from: '/' }} className="block bg-white rounded-xl shadow-sm p-4 active:bg-gray-50 transition-colors">
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <span className="text-sm font-semibold text-gray-900 leading-tight">{a.name}</span>
                       <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${getCodeColor('ASSET_STATUS', a.status)}`}>
@@ -364,7 +364,7 @@ export default function AssetSearch() {
                           </span>
                         </td>
                         <td className="px-5 py-3.5">
-                          <Link to={`/assets/${a.id}`} className="text-indigo-600 hover:underline text-sm">상세</Link>
+                          <Link to={`/assets/${a.id}`} state={{ from: '/' }} className="text-indigo-600 hover:underline text-sm">상세</Link>
                         </td>
                       </tr>
                     ))}
