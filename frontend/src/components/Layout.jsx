@@ -91,14 +91,16 @@ export default function Layout() {
   }, [location.pathname]);
 
   useEffect(() => {
-    const fetchNotifications = () => {
-      api.get('/notifications/unread-count')
-        .then(res => setUnreadCount(res.data.count))
-        .catch(() => {});
+    const token = localStorage.getItem('token');
+    const baseURL = (process.env.REACT_APP_API_URL || 'http://localhost:4000/api');
+    const es = new EventSource(`${baseURL}/notifications/stream?token=${token}`);
+    es.onmessage = (e) => {
+      try { setUnreadCount(JSON.parse(e.data).count); } catch {}
     };
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
+    es.onerror = () => {
+      // 연결 끊기면 브라우저가 자동 재연결
+    };
+    return () => es.close();
   }, []);
 
   const handleLogout = () => { logout(); navigate('/login'); };

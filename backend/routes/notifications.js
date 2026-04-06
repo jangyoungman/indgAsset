@@ -3,6 +3,60 @@ const router = express.Router();
 const pool = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 
+// SSE 연결 관리 (userId → Set<res>)
+const clients = new Map();
+
+function addClient(userId, res) {
+  if (!clients.has(userId)) clients.set(userId, new Set());
+  clients.get(userId).add(res);
+}
+
+function removeClient(userId, res) {
+  const set = clients.get(userId);
+  if (set) { set.delete(res); if (set.size === 0) clients.delete(userId); }
+}
+
+// 외부에서 호출: 특정 사용자에게 알림 push
+function notifyUser(userId) {
+  const set = clients.get(userId);
+  if (!set) return;
+  pool.query('SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = FALSE', [userId])
+    .then(([result]) => {
+      const data = JSON.stringify({ count: result[0].count });
+      for (const res of set) {
+        res.write(`data: ${data}\n\n`);
+      }
+    })
+    .catch(() => {});
+}
+
+// SSE 스트림 엔드포인트
+router.get('/stream', authenticate, (req, res) => {
+  const userId = req.user.id;
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no', // Nginx 버퍼링 비활성화
+  });
+
+  // 연결 시 즉시 현재 unread count 전송
+  pool.query('SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = FALSE', [userId])
+    .then(([result]) => { res.write(`data: ${JSON.stringify({ count: result[0].count })}\n\n`); })
+    .catch(() => {});
+
+  addClient(userId, res);
+
+  // 30초마다 heartbeat (연결 유지)
+  const heartbeat = setInterval(() => { res.write(': heartbeat\n\n'); }, 30000);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    removeClient(userId, res);
+  });
+});
+
 // 내 알림 목록
 router.get('/', authenticate, async (req, res) => {
   try {
@@ -55,4 +109,5 @@ router.put('/read-all', authenticate, async (req, res) => {
   }
 });
 
+router.notifyUser = notifyUser;
 module.exports = router;

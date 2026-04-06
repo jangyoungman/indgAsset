@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 const { authenticate, isManagerOrAdmin } = require('../middleware/auth');
+const { notifyUser } = require('./notifications');
 
 // 대여 요청 (일반 사용자)
 router.post('/request', authenticate, async (req, res) => {
@@ -87,6 +88,8 @@ router.put('/:id/approve', authenticate, isManagerOrAdmin, async (req, res) => {
       'INSERT INTO notifications (user_id, title, message, link) VALUES (?, ?, ?, ?)',
       [assignment.user_id, `자산 대여 ${statusText}`, `자산 대여 요청이 ${statusText}되었습니다.`, `/assignments/${req.params.id}`]
     );
+    // SSE push
+    notifyUser(assignment.user_id);
 
     // 이력 로그
     await conn.query(

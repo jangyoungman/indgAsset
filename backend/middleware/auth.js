@@ -3,11 +3,14 @@ const jwt = require('jsonwebtoken');
 // JWT 인증 미들웨어 (Auth 서버와 동일한 JWT_SECRET으로 자체 검증)
 const authenticate = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  // SSE 등 EventSource는 커스텀 헤더를 못 보내므로 쿼리 파라미터도 허용
+  const token = (authHeader && authHeader.startsWith('Bearer '))
+    ? authHeader.split(' ')[1]
+    : req.query.token;
+
+  if (!token) {
     return res.status(401).json({ error: '인증 토큰이 필요합니다.' });
   }
-
-  const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     // Auth 서버 토큰 형식에 맞게 매핑
