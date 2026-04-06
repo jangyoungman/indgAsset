@@ -12,6 +12,7 @@ import UserList from './pages/UserList';
 import CodeManagement from './pages/CodeManagement';
 import DepartmentManagement from './pages/DepartmentManagement';
 import AssetSearch from './pages/AssetSearch';
+import AssignmentList from './pages/AssignmentList';
 
 function PrivateRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -53,6 +54,7 @@ export default function App() {
                 <AssetForm />
               </PrivateRoute>
             } />
+            <Route path="assignments" element={<AssignmentList />} />
             <Route path="users" element={
               <PrivateRoute roles={['admin']}>
                 <UserList />
