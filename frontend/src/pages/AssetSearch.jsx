@@ -24,7 +24,7 @@ export default function AssetSearch() {
   const [sort, setSort] = useState({ key: '', dir: 'asc' });
   const [selected, setSelected] = useState(new Set());
   const [deleting, setDeleting] = useState(false);
-  const [chipOpen, setChipOpen] = useState(false);
+  const [helpTab, setHelpTab] = useState('ai');
 
   const search = async (page = 1) => {
     if (!query.trim()) return;
@@ -36,7 +36,6 @@ export default function AssetSearch() {
       setFilters(res.data.filters || {});
       setSelected(new Set());
       setSearched(true);
-      setChipOpen(false);
     } catch (err) {
       console.error(err);
     } finally {
@@ -180,55 +179,80 @@ export default function AssetSearch() {
           </button>
         </div>
       </div>
-      {/* 키워드 칩 */}
-      <div className="mb-6">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-gray-400 w-14 shrink-0">카테고리</span>
-            {categories.map(c => (
-              <button key={c.id} onClick={() => addChip(c.name)} className="px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition">{c.name}</button>
-            ))}
+      {/* 검색 도움말 탭 */}
+      {!searched && (
+        <div className="mb-6">
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setHelpTab('ai')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition ${helpTab === 'ai' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+            >
+              자연어 검색
+            </button>
+            <button
+              onClick={() => setHelpTab('keyword')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition ${helpTab === 'keyword' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+            >
+              키워드 검색
+            </button>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-gray-400 w-14 shrink-0">상태</span>
-            {statusList.map(s => (
-              <button key={s.code} onClick={() => addChip(s.name)} className="px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition">{s.name}</button>
-            ))}
-          </div>
-          {chipOpen && (
-            <>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs text-gray-400 w-14 shrink-0">부서</span>
-                {departments.map(d => (
-                  <button key={d.id} onClick={() => addChip(d.name)} className="px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition">{d.name}</button>
-                ))}
-              </div>
-              {users.length > 0 && (
+
+          {helpTab === 'ai' && (
+            <div className="bg-white rounded-b-xl shadow-sm p-4">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-gray-400 uppercase">
+                    <th className="pb-2 pr-4 font-medium">입력 예시</th>
+                    <th className="pb-2 font-medium">검색 조건</th>
+                  </tr>
+                </thead>
+                <tbody className="text-gray-600">
+                  <tr className="border-t border-gray-50"><td className="py-2 pr-4 font-medium text-gray-900">노트북 폐기 외의 목록</td><td className="py-2">카테고리=노트북, 상태 <span className="text-red-500">제외</span>=폐기</td></tr>
+                  <tr className="border-t border-gray-50"><td className="py-2 pr-4 font-medium text-gray-900">IT팀 빼고 사용중인 노트북</td><td className="py-2">카테고리=노트북, 상태=사용 중, 부서 <span className="text-red-500">제외</span>=IT팀</td></tr>
+                  <tr className="border-t border-gray-50"><td className="py-2 pr-4 font-medium text-gray-900">올해 구매한 장비</td><td className="py-2">구매일 &ge; 2026-01-01</td></tr>
+                  <tr className="border-t border-gray-50"><td className="py-2 pr-4 font-medium text-gray-900">100만원 이상 노트북</td><td className="py-2">카테고리=노트북, 금액 &ge; 1,000,000원</td></tr>
+                  <tr className="border-t border-gray-50"><td className="py-2 pr-4 font-medium text-gray-900">보증 만료 임박한 장비</td><td className="py-2">보증만료일 조건</td></tr>
+                  <tr className="border-t border-gray-50"><td className="py-2 pr-4 font-medium text-gray-900">개발팀 모니터 사용중</td><td className="py-2">카테고리=모니터, 상태=사용 중, 부서=개발팀</td></tr>
+                </tbody>
+              </table>
+              <p className="text-xs text-gray-400 mt-3">AI가 자연어를 분석하여 검색 조건을 자동 생성합니다. API 호출 실패 시 키워드 검색으로 자동 전환됩니다.</p>
+            </div>
+          )}
+
+          {helpTab === 'keyword' && (
+            <div className="bg-white rounded-b-xl shadow-sm p-4">
+              <p className="text-xs text-gray-500 mb-3">칩을 클릭하면 검색어에 추가됩니다. 조합 후 Enter로 검색하세요.</p>
+              <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-xs text-gray-400 w-14 shrink-0">사용자</span>
-                  {users.filter(u => u.is_active !== false).map(u => (
-                    <button key={u.id} onClick={() => addChip(u.name)} className="px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition">{u.name}</button>
+                  <span className="text-xs text-gray-400 w-14 shrink-0">카테고리</span>
+                  {categories.map(c => (
+                    <button key={c.id} onClick={() => addChip(c.name)} className="px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition">{c.name}</button>
                   ))}
                 </div>
-              )}
-            </>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-gray-400 w-14 shrink-0">상태</span>
+                  {statusList.map(s => (
+                    <button key={s.code} onClick={() => addChip(s.name)} className="px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition">{s.name}</button>
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-gray-400 w-14 shrink-0">부서</span>
+                  {departments.map(d => (
+                    <button key={d.id} onClick={() => addChip(d.name)} className="px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition">{d.name}</button>
+                  ))}
+                </div>
+                {users.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs text-gray-400 w-14 shrink-0">사용자</span>
+                    {users.filter(u => u.is_active !== false).map(u => (
+                      <button key={u.id} onClick={() => addChip(u.name)} className="px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition">{u.name}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 mt-3">키워드 검색은 정확한 이름 매칭으로 동작합니다. AI 검색과 달리 부정 조건, 금액, 날짜 범위는 지원하지 않습니다.</p>
+            </div>
           )}
-        </div>
-        <button
-          onClick={() => setChipOpen(!chipOpen)}
-          className="mt-2 text-xs text-gray-400 hover:text-indigo-600 transition flex items-center gap-1"
-        >
-          {chipOpen ? '접기' : '부서 · 사용자 더보기'}
-          <svg className={`w-3 h-3 transition-transform ${chipOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-      </div>
-
-      {/* 검색 전 안내 */}
-      {!searched && !loading && (
-        <div className="flex items-center justify-center py-20 text-gray-400 text-sm">
-          검색어를 입력하고 Enter 또는 검색 버튼을 눌러주세요.
         </div>
       )}
 
