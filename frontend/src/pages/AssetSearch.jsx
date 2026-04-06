@@ -15,16 +15,28 @@ export default function AssetSearch() {
     api.get('/assets/categories').then(res => setCategories(res.data)).catch(() => {});
   }, []);
 
-  const [query, setQuery] = useState('');
-  const [assets, setAssets] = useState([]);
-  const [pagination, setPagination] = useState({});
-  const [filters, setFilters] = useState({});
+  // sessionStorage에서 이전 검색 상태 복원
+  const saved = (() => {
+    try { const s = sessionStorage.getItem('assetSearch'); return s ? JSON.parse(s) : null; } catch { return null; }
+  })();
+
+  const [query, setQuery] = useState(saved?.query || '');
+  const [assets, setAssets] = useState(saved?.assets || []);
+  const [pagination, setPagination] = useState(saved?.pagination || {});
+  const [filters, setFilters] = useState(saved?.filters || {});
   const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [sort, setSort] = useState({ key: '', dir: 'asc' });
+  const [searched, setSearched] = useState(saved?.searched || false);
+  const [sort, setSort] = useState(saved?.sort || { key: '', dir: 'asc' });
   const [selected, setSelected] = useState(new Set());
   const [deleting, setDeleting] = useState(false);
   const [helpTab, setHelpTab] = useState('ai');
+
+  // 검색 상태가 변경될 때마다 sessionStorage에 저장
+  useEffect(() => {
+    if (searched) {
+      sessionStorage.setItem('assetSearch', JSON.stringify({ query, assets, pagination, filters, searched, sort }));
+    }
+  }, [query, assets, pagination, filters, searched, sort]);
 
   const search = async (page = 1) => {
     if (!query.trim()) return;
