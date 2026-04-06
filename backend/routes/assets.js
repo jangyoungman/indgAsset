@@ -121,7 +121,11 @@ router.post('/search', authenticate, async (req, res) => {
         // Auth 서버 연결 실패 시 부서 매칭 건너뜀
       }
 
-      // 5. 남은 텍스트 정리
+      // 5. 자연어 노이즈 단어 제거
+      const stopWords = ['조회', '검색', '보여줘', '보여줘', '찾아줘', '찾기', '알려줘', '목록', '리스트', '전체', '있는', '중인', '하는'];
+      for (const sw of stopWords) {
+        remaining = remaining.replace(new RegExp(sw, 'g'), '');
+      }
       remaining = remaining.replace(/\s+/g, ' ').trim();
     }
 
