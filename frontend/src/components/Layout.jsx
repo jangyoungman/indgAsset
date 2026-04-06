@@ -59,6 +59,12 @@ const icons = {
       <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  search: (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  ),
 };
 
 export default function Layout() {
@@ -98,7 +104,8 @@ export default function Layout() {
   const handleLogout = () => { logout(); navigate('/login'); };
 
   const navItems = [
-    { to: '/', label: '대시보드', icon: icons.dashboard, roles: ['admin', 'manager'] },
+    { to: '/', label: '자산 검색', icon: icons.search, roles: ['admin', 'manager', 'user'] },
+    { to: '/dashboard', label: '대시보드', icon: icons.dashboard, roles: ['admin', 'manager'] },
     { to: '/assets', label: '자산 목록', icon: icons.assets, roles: ['admin', 'manager', 'user'] },
     { to: '/assignments', label: '대여/반납', icon: icons.assignments, roles: ['admin', 'manager', 'user'] },
     { to: '/users', label: '사용자 관리', icon: icons.users, roles: ['admin'] },

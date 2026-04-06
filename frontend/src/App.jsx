@@ -11,6 +11,7 @@ import AssetBulkUpload from './pages/AssetBulkUpload';
 import UserList from './pages/UserList';
 import CodeManagement from './pages/CodeManagement';
 import DepartmentManagement from './pages/DepartmentManagement';
+import AssetSearch from './pages/AssetSearch';
 
 function PrivateRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -33,7 +34,8 @@ export default function App() {
               <Layout />
             </PrivateRoute>
           }>
-            <Route index element={
+            <Route index element={<AssetSearch />} />
+            <Route path="dashboard" element={
               <PrivateRoute roles={['admin', 'manager']}>
                 <Dashboard />
               </PrivateRoute>
