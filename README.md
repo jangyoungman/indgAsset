@@ -1,93 +1,90 @@
-# indgAsset
+# indgAsset - 자산관리 시스템
 
+INNODIGM 사내 자산(노트북, 모니터, 사무기기 등)의 등록, 조회, 대여/반납, 현황 관리를 위한 웹 애플리케이션입니다.
 
+## 접속 주소
 
-## Getting started
+**https://asset.indg.co.kr**
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## 기술 스택
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+| 구분 | 기술 |
+|------|------|
+| 프론트엔드 | React 18, Tailwind CSS 3, React Router v6 |
+| 백엔드 | Node.js, Express |
+| 데이터베이스 | MySQL |
+| 인증 | JWT, Auth 서버 분리 (포트 8090) |
+| AI 검색 | Anthropic Claude API (Haiku) |
+| 배포 | AWS EC2, Nginx, PM2, Let's Encrypt SSL |
 
-## Add your files
+## 주요 기능
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+- **AI 자연어 자산 검색** -- 자연어로 자산을 검색 (예: "노트북 폐기 외의 목록", "올해 구매한 100만원 이상 장비")
+- **자산 CRUD** -- 등록, 조회, 수정, 상태 변경
+- **자산 일괄 등록** -- 엑셀 파일 업로드로 대량 등록
+- **자산 일괄 폐기** -- 체크박스 선택 후 일괄 폐기 처리
+- **사용자 관리** -- 등록, 역할(관리자/매니저/사용자) 설정, 계정 잠금/해제, 비밀번호 초기화
+- **시스템 관리** -- 공통코드 관리, 부서 관리
+- **대시보드** -- 자산 현황, 카테고리별/부서별 분포, 최근 활동
+- **모바일 반응형** -- 모든 페이지에서 모바일 카드 뷰 지원
+- **로그인 보안** -- 5회 실패 시 계정 잠금, 비밀번호 변경 강제
+
+## 프로젝트 구조
 
 ```
-cd existing_repo
-git remote add origin http://gitlab.indg.co.kr/indg/indgasset.git
-git branch -M main
-git push -uf origin main
+indgAsset/
+├── backend/                # Express API 서버 (포트 4000)
+│   ├── app.js
+│   ├── config/             # DB 연결, 스키마
+│   ├── middleware/          # JWT 인증
+│   └── routes/             # API 라우트 (auth, users, assets, codes 등)
+├── frontend/               # React SPA
+│   ├── src/
+│   │   ├── components/     # Layout
+│   │   ├── contexts/       # AuthContext, CodeContext
+│   │   ├── hooks/          # useLookup
+│   │   └── pages/          # 페이지 컴포넌트
+│   └── tailwind.config.js
+├── docs/                   # 문서 (매뉴얼, 변경이력, 배포가이드)
+└── docker-compose.yml
 ```
 
-## Integrate with your tools
+## 로컬 실행
 
-- [ ] [Set up project integrations](http://gitlab.indg.co.kr/indg/indgasset/-/settings/integrations)
+```bash
+# 백엔드
+cd backend
+cp .env.example .env    # DB 접속 정보 설정
+npm install
+npm run dev             # http://localhost:4000
 
-## Collaborate with your team
+# 프론트엔드
+cd frontend
+npm install
+npm start               # http://localhost:3000
+```
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+## 배포
 
-## Test and Deploy
+```bash
+# 프론트엔드 빌드 (로컬에서 실행, EC2에서 빌드 금지)
+cd frontend
+REACT_APP_API_URL=https://asset.indg.co.kr/api npm run build
 
-Use the built-in continuous integration in GitLab.
+# EC2에 업로드
+rsync -avz --delete -e "ssh -i aws-key.pem" build/ ubuntu@EC2:/home/ubuntu/indgAsset/frontend/build/
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+# 백엔드 재시작
+ssh -i aws-key.pem ubuntu@EC2 "pm2 restart indg-backend"
+```
 
-***
+## 문서
 
-# Editing this README
+- [사용 매뉴얼](docs/asset_user_manual.html)
+- [변경 이력](docs/changelog.md)
+- [배포 가이드](docs/DEPLOY.md)
+- [서버 운영 관리](docs/management.md)
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## 관리자
 
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+장영만 (gellotin@indg.co.kr)
