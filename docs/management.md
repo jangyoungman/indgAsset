@@ -4,9 +4,13 @@
 
 | 항목 | 내용 |
 |------|------|
-| 서버 | AWS EC2 (Ubuntu) |
+| 서버 | AWS EC2 t3a.micro (1 vCPU, 1GB RAM) |
+| IP | 3.130.223.104 (Elastic IP) |
+| 리전 | us-east-2 (Ohio) |
+| OS | Ubuntu 20.04 LTS |
 | 도메인 관리 | AWS Route53 |
 | SSL | Let's Encrypt (certbot, 자동 갱신) |
+| EBS | 64GB gp2 |
 
 ## 서비스 구성
 
@@ -17,6 +21,7 @@
 | 홈페이지 + 문의 API | Node.js + Express | 5000 | www.indg.co.kr | /home/ubuntu/homepage |
 | 자산관리 (API) | Node.js + Express | 4000 | asset.indg.co.kr | /home/ubuntu/indgAsset |
 | 자산관리 (프론트) | React 빌드 파일 | - | asset.indg.co.kr | /home/ubuntu/indgAsset/frontend/build |
+| Auth 서버 | Node.js + Express | 8090 | - (내부) | /home/ubuntu/auth-server |
 | DB | MySQL | 3306 | - | localhost |
 
 ### 통합 아키텍처
@@ -25,6 +30,7 @@
                               ┌─ www.indg.co.kr ──→ Node.js (5000) 홈페이지 + 문의 API
 클라이언트 → Nginx (80/443) ──┤
                               └─ asset.indg.co.kr ──→ Node.js (4000) + React 정적파일
+                                                      └→ Auth 서버 (8090) 내부 프록시
 ```
 
 - Nginx가 모든 외부 요청을 수신 (포트 80, 443)
@@ -160,15 +166,16 @@ pm2 restart indg-backend
 # 로컬:
 cd frontend
 REACT_APP_API_URL=https://asset.indg.co.kr/api npm run build
-scp -i your-key.pem -r build ubuntu@{EC2_IP}:/home/ubuntu/indgAsset/frontend/
+scp -i your-key.pem -r build ubuntu@3.130.223.104:/home/ubuntu/indgAsset/frontend/
 ```
 
 ### 홈페이지
 
 ```bash
-# Tomcat webapps에 WAR 배포 또는 소스 업데이트 후
-sudo /server/apache-tomcat-8.5.64/bin/shutdown.sh
-sudo /server/apache-tomcat-8.5.64/bin/startup.sh
+# 로컬에서 EC2로 소스 전송 후
+ssh -i aws-key.pem ubuntu@3.130.223.104
+cd /home/ubuntu/homepage
+pm2 restart indg-homepage
 ```
 
 ## 홈페이지 문의 기능 (구현 완료)
@@ -258,3 +265,88 @@ pm2 save
 sudo systemctl is-enabled nginx
 sudo systemctl is-enabled mysql
 ```
+
+## AWS 비용 최적화 (2026-04-07 시행)
+
+### 변경 전 월 비용 (2026년 3월 청구서 기준)
+
+| 항목 | 월 비용 |
+|------|---------|
+| Elastic Load Balancing (ALB) | $16.75 |
+| VPC Public IPv4 주소 (3개) | $11.17 |
+| EC2 t2.micro (온디맨드) | $8.63 |
+| EBS 64GB gp2 + 스냅샷 | $6.83 |
+| Route 53 | $0.51 |
+| Data Transfer | $0.00 |
+| **소계 (세전)** | **$43.89** |
+| 세금 | $4.40 |
+| **총합** | **$48.29** |
+
+### 시행한 조치
+
+#### 1. ALB 삭제 — 절감 $16.75/월
+
+기존에 www.indg.co.kr용으로 ALB를 사용했으나, Nginx가 이미 동일한 역할(리버스 프록시 + SSL)을 수행하고 있어 중복 구조였음.
+
+**작업 내용:**
+- Route53 DNS를 ALB에서 EC2 IP(Elastic IP)로 변경
+- www.indg.co.kr, indg.co.kr에 Let's Encrypt SSL 인증서 발급
+- nginx.conf의 기존 정적파일 서버 블록 비활성화 (sites-enabled/homepage와 충돌)
+- ALB(ALBindg), 리스너 2개, 타겟그룹(indgwww) 삭제
+
+**변경 전:**
+```
+www.indg.co.kr → ALB (SSL) → EC2 → Nginx → Node.js(5000)
+```
+
+**변경 후:**
+```
+www.indg.co.kr → Nginx (SSL, Let's Encrypt) → Node.js(5000)
+```
+
+#### 2. Public IPv4 정리 — 절감 ~$7.44/월
+
+ALB 삭제로 ALB에 할당된 퍼블릭 IP가 자동 해제됨. EC2의 Elastic IP 1개만 유지.
+
+#### 3. 인스턴스 타입 변경 — 절감 ~$1.80/월
+
+| | 변경 전 | 변경 후 |
+|--|--------|---------|
+| 타입 | t2.micro | t3a.micro |
+| 비용 | $8.63/월 | ~$6.83/월 |
+| CPU | Intel | AMD (동일 스펙, 더 저렴) |
+
+**작업 내용:**
+- Elastic IP 할당 (인스턴스 중지 시 IP 변경 방지)
+- Route53 DNS 3개 도메인 모두 새 IP로 업데이트
+- 인스턴스 중지 → 타입 변경 → 시작
+- SSL 인증서 갱신
+- PM2 서비스 자동 시작 확인
+
+#### 4. Elastic IP 할당
+
+| | 변경 전 | 변경 후 |
+|--|--------|---------|
+| IP | 3.142.135.156 (동적) | 3.130.223.104 (Elastic IP, 고정) |
+
+동적 IP는 인스턴스 중지/시작 시 변경되므로, Elastic IP로 고정하여 DNS/SSH 설정 안정화.
+
+### 변경 후 예상 월 비용
+
+| 항목 | 월 비용 |
+|------|---------|
+| EC2 t3a.micro (온디맨드) | ~$6.83 |
+| EBS 64GB gp2 + 스냅샷 | ~$6.83 |
+| VPC Public IPv4 (Elastic IP 1개) | ~$3.73 |
+| Route 53 | ~$0.51 |
+| **소계 (세전)** | **~$17.90** |
+| **절감액** | **~$25.99/월 (~$312/년)** |
+| **절감률** | **59%** |
+
+### 추가 절감 가능 (미시행)
+
+| 방안 | 절감액 | 비고 |
+|------|--------|------|
+| EBS 64GB → 20GB 축소 | ~$4.40/월 | 현재 14GB 사용중, 새 볼륨 생성 필요 |
+| 1년 예약 인스턴스 (선결제 없음) | ~$2/월 | 1년 이상 운영 확정 시 |
+| 1년 예약 인스턴스 (전액 선결제) | ~$3/월 | 연 $50 선결제 필요 |
