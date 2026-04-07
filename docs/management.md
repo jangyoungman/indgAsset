@@ -350,3 +350,41 @@ ALB 삭제로 ALB에 할당된 퍼블릭 IP가 자동 해제됨. EC2의 Elastic 
 | EBS 64GB → 20GB 축소 | ~$4.40/월 | 현재 14GB 사용중, 새 볼륨 생성 필요 |
 | 1년 예약 인스턴스 (선결제 없음) | ~$2/월 | 1년 이상 운영 확정 시 |
 | 1년 예약 인스턴스 (전액 선결제) | ~$3/월 | 연 $50 선결제 필요 |
+
+#### 5. 전체 서브도메인 SSL 전환 (ALB → Let's Encrypt)
+
+ALB 삭제로 인해 기존 ALB 인증서(와일드카드)에 의존하던 서브도메인의 SSL이 끊어짐. 모든 서브도메인을 개별 Let's Encrypt 인증서로 전환 완료.
+
+**작업 내용:**
+- Route53에서 CNAME(→www.indg.co.kr) 레코드를 A 레코드(→3.130.223.104)로 변경
+- nginx.conf의 서브도메인 서버 블록을 `/etc/nginx/sites-available/`로 분리
+- certbot으로 각 도메인 SSL 인증서 발급 + HTTPS 리다이렉트 자동 설정
+
+**SSL 인증서 현황:**
+
+| 도메인 | 용도 | 프록시 대상 | SSL | 만료일 |
+|--------|------|-------------|-----|--------|
+| www.indg.co.kr | 홈페이지 | localhost:5000 | Let's Encrypt | 2026-07-06 |
+| indg.co.kr | 홈페이지 (리다이렉트) | localhost:5000 | Let's Encrypt | 2026-07-06 |
+| asset.indg.co.kr | 자산관리 | localhost:4000 | Let's Encrypt | 2026-06-22 |
+| gitlab.indg.co.kr | GitLab | 1.231.177.108:8888 | Let's Encrypt | 2026-07-06 |
+| license.indg.co.kr | 라이선스 관리 | 1.231.177.108:8090 | Let's Encrypt | 2026-07-06 |
+| pms.indg.co.kr | PMS | 1.231.177.108:3000 | Let's Encrypt | 2026-07-06 |
+| new.indg.co.kr | 신규 홈페이지 | 정적 파일 (/home/ubuntu/homepage) | Let's Encrypt | 2026-07-06 |
+
+**Nginx 설정 파일 구조 (변경 후):**
+
+```
+/etc/nginx/
+├── nginx.conf              # 기본 설정 (서브도메인 블록은 비활성화됨)
+├── sites-available/
+│   ├── homepage             # www.indg.co.kr, indg.co.kr
+│   ├── indgAsset            # asset.indg.co.kr
+│   ├── gitlab               # gitlab.indg.co.kr
+│   ├── license              # license.indg.co.kr
+│   ├── pms                  # pms.indg.co.kr
+│   └── newindg              # new.indg.co.kr
+└── sites-enabled/           # sites-available 심볼릭 링크
+```
+
+> 모든 인증서는 certbot 자동 갱신으로 관리됨. `sudo certbot renew --dry-run`으로 갱신 테스트 가능.
