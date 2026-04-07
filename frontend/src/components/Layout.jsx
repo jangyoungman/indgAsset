@@ -110,15 +110,15 @@ export default function Layout() {
     { to: '/dashboard', label: '대시보드', icon: icons.dashboard, roles: ['admin', 'manager'] },
     { to: '/assets', label: '자산 목록', icon: icons.assets, roles: ['admin', 'manager', 'user'] },
     { to: '/assignments', label: '대여/반납', icon: icons.assignments, roles: ['admin', 'manager', 'user'] },
-    { to: '/users', label: '사용자 관리', icon: icons.users, roles: ['admin'] },
   ];
 
   const systemMenuItems = [
+    { to: '/users', label: '사용자 관리' },
     { to: '/system/codes', label: '공통코드 관리' },
     { to: '/system/departments', label: '부서 관리' },
   ];
 
-  const [systemMenuOpen, setSystemMenuOpen] = useState(location.pathname.startsWith('/system'));
+  const [systemMenuOpen, setSystemMenuOpen] = useState(location.pathname.startsWith('/system') || location.pathname === '/users');
 
   const isActive = (to) => {
     if (to === '/') return location.pathname === '/';
@@ -189,7 +189,7 @@ export default function Layout() {
                 onClick={() => sidebarOpen ? setSystemMenuOpen(!systemMenuOpen) : navigate('/system/codes')}
                 title={!sidebarOpen ? '시스템 관리' : undefined}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors ${
-                  location.pathname.startsWith('/system')
+                  location.pathname.startsWith('/system') || location.pathname === '/users'
                     ? 'bg-indigo-500/10 text-indigo-400'
                     : 'text-gray-400 hover:bg-gray-800 hover:text-white'
                 }`}
