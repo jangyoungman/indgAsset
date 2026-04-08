@@ -72,6 +72,7 @@ export default function Layout() {
   const { getCodeName } = useCode();
   const { deptName } = useLookup();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [hasVpn, setHasVpn] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
@@ -100,6 +101,10 @@ export default function Layout() {
     const interval = setInterval(fetchCount, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    api.get(`/vpn/config/${user.id}`).then(() => setHasVpn(true)).catch(() => setHasVpn(false));
+  }, [user.id]);
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -286,28 +291,30 @@ export default function Layout() {
               )}
             </Link>
 
-            {/* VPN download */}
-            <button
-              onClick={() => {
-                api.get(`/vpn/config/${user.id}`)
-                  .then(res => {
-                    const blob = new Blob([res.data.config], { type: 'text/plain' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url; a.download = `wg_${user.name}.conf`; a.click();
-                    URL.revokeObjectURL(url);
-                  })
-                  .catch(() => alert('VPN 인증서가 없습니다. 관리자에게 문의하세요.'));
-              }}
-              className="text-gray-500 hover:text-gray-700 transition-colors"
-              title="VPN 설정 다운로드"
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M10 2C10 2 6 6 6 10C6 12.2091 7.79086 14 10 14C12.2091 14 14 12.2091 14 10C14 6 10 2 10 2Z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                <path d="M2 14V16C2 17.1046 2.89543 18 4 18H16C17.1046 18 18 17.1046 18 16V14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M10 10V17M10 17L7 14M10 17L13 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
+            {/* VPN download — 인증서 있을 때만 표시 */}
+            {hasVpn && (
+              <button
+                onClick={() => {
+                  api.get(`/vpn/config/${user.id}`)
+                    .then(res => {
+                      const blob = new Blob([res.data.config], { type: 'text/plain' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url; a.download = `wg_${user.name}.conf`; a.click();
+                      URL.revokeObjectURL(url);
+                    })
+                    .catch(() => {});
+                }}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+                title="VPN 설정 다운로드"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M10 2C10 2 6 6 6 10C6 12.2091 7.79086 14 10 14C12.2091 14 14 12.2091 14 10C14 6 10 2 10 2Z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                  <path d="M2 14V16C2 17.1046 2.89543 18 4 18H16C17.1046 18 18 17.1046 18 16V14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  <path d="M10 10V17M10 17L7 14M10 17L13 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            )}
 
             {/* Avatar + user name */}
             <div className="flex items-center gap-2">
