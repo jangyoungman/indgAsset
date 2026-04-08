@@ -11,6 +11,7 @@ const assignmentRoutes = require('./routes/assignments');
 const dashboardRoutes = require('./routes/dashboard');
 const notificationRoutes = require('./routes/notifications');
 const codeRoutes = require('./routes/codes');
+const vpnRoutes = require('./routes/vpn');
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use('/api/assignments', assignmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/codes', codeRoutes);
+app.use('/api/vpn', vpnRoutes);
 
 // 상태 체크
 app.get('/api/health', (req, res) => {

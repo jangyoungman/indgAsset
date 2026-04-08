@@ -108,6 +108,68 @@ export default function UserList() {
   };
 
   const [tempPwInfo, setTempPwInfo] = useState(null);
+  const [vpnModal, setVpnModal] = useState(null); // { config, ipAddress, publicKey, userName } or { generating: true }
+  const [vpnList, setVpnList] = useState(new Set());
+
+  useEffect(() => {
+    api.get('/vpn').then(res => setVpnList(new Set(res.data.map(v => v.user_id)))).catch(() => {});
+  }, []);
+
+  const handleVpn = async (u) => {
+    if (vpnList.has(u.id)) {
+      // 이미 있으면 config 조회
+      try {
+        const res = await api.get(`/vpn/config/${u.id}`);
+        setVpnModal({ ...res.data, userName: u.name, userEmail: u.email, userId: u.id });
+      } catch (err) {
+        alert(err.response?.data?.error || 'VPN 정보를 불러올 수 없습니다.');
+      }
+    } else {
+      // 없으면 생성
+      if (!window.confirm(`${u.name}의 VPN 인증서를 생성하시겠습니까?`)) return;
+      try {
+        const genRes = await api.post('/vpn/generate', { user_id: u.id, user_name: u.name, user_email: u.email });
+        setVpnList(prev => new Set([...prev, u.id]));
+        // 생성 후 config 조회
+        const cfgRes = await api.get(`/vpn/config/${u.id}`);
+        setVpnModal({
+          ...cfgRes.data,
+          userName: u.name,
+          userEmail: u.email,
+          userId: u.id,
+          serverCommand: genRes.data.serverCommand,
+          serverConfig: genRes.data.serverConfig,
+          justCreated: true,
+        });
+      } catch (err) {
+        alert(err.response?.data?.error || 'VPN 인증서 생성에 실패했습니다.');
+      }
+    }
+  };
+
+  const handleVpnDelete = async (userId) => {
+    try {
+      const [vpnInfo] = (await api.get('/vpn')).data.filter(v => v.user_id === userId);
+      if (!vpnInfo) return;
+      if (!window.confirm('VPN 인증서를 삭제하시겠습니까?')) return;
+      const res = await api.delete(`/vpn/${vpnInfo.id}`);
+      setVpnList(prev => { const n = new Set(prev); n.delete(userId); return n; });
+      setVpnModal(null);
+      alert(`삭제 완료.\n\nXPS 서버에서 실행:\n${res.data.serverCommand}`);
+    } catch (err) {
+      alert('삭제 실패');
+    }
+  };
+
+  const downloadConfig = (config, name) => {
+    const blob = new Blob([config], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `wg_${name}.conf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const resetUserPw = async (u) => {
     if (!window.confirm(`${u.name}의 비밀번호를 초기화하시겠습니까?`)) return;
@@ -168,6 +230,9 @@ export default function UserList() {
                   <button onClick={() => unlockUser(u)} className="text-amber-600 font-medium">잠금해제</button>
                 )}
                 <button onClick={() => resetUserPw(u)} className="text-gray-500 font-medium">PW초기화</button>
+                <button onClick={() => handleVpn(u)} className={`font-medium ${vpnList.has(u.id) ? 'text-emerald-600' : 'text-indigo-600'}`}>
+                  {vpnList.has(u.id) ? 'VPN🔑' : 'VPN+'}
+                </button>
               </div>
             </div>
           ))}
@@ -230,6 +295,9 @@ export default function UserList() {
                       <button onClick={() => unlockUser(u)} className="text-amber-600 hover:underline text-sm">잠금해제</button>
                     )}
                     <button onClick={() => resetUserPw(u)} className="text-gray-500 hover:underline text-sm">PW초기화</button>
+                    <button onClick={() => handleVpn(u)} className={`hover:underline text-sm ${vpnList.has(u.id) ? 'text-emerald-600' : 'text-indigo-600'}`}>
+                      {vpnList.has(u.id) ? 'VPN🔑' : 'VPN+'}
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -333,6 +401,63 @@ export default function UserList() {
               className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition">
               확인
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* VPN 모달 */}
+      {vpnModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">VPN 인증서</h2>
+            <p className="text-sm text-gray-500 mb-4">{vpnModal.userName}</p>
+
+            <div className="space-y-3 mb-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">IP 주소</span>
+                <span className="font-mono text-gray-900">{vpnModal.ipAddress}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Public Key</span>
+                <span className="font-mono text-xs text-gray-900 break-all">{vpnModal.publicKey}</span>
+              </div>
+            </div>
+
+            {/* 설정 파일 */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+              <pre className="text-xs font-mono text-gray-700 whitespace-pre-wrap select-all">{vpnModal.config}</pre>
+            </div>
+
+            {/* 서버 명령어 (생성 직후에만 표시) */}
+            {vpnModal.justCreated && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                <p className="text-xs font-medium text-amber-700 mb-2">XPS 서버에서 실행하세요:</p>
+                <pre className="text-xs font-mono text-amber-900 whitespace-pre-wrap select-all">{vpnModal.serverCommand}</pre>
+                <p className="text-xs font-medium text-amber-700 mt-3 mb-2">wg0.conf에 추가:</p>
+                <pre className="text-xs font-mono text-amber-900 whitespace-pre-wrap select-all">{vpnModal.serverConfig}</pre>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => downloadConfig(vpnModal.config, vpnModal.userName)}
+                className="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition"
+              >
+                설정파일 다운로드
+              </button>
+              <button
+                onClick={() => handleVpnDelete(vpnModal.userId)}
+                className="px-4 py-2.5 rounded-lg text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50 transition"
+              >
+                삭제
+              </button>
+              <button
+                onClick={() => setVpnModal(null)}
+                className="px-4 py-2.5 rounded-lg text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50 transition"
+              >
+                닫기
+              </button>
+            </div>
           </div>
         </div>
       )}
