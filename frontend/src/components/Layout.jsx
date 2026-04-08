@@ -309,9 +309,11 @@ export default function Layout() {
                 title="VPN 설정 다운로드"
               >
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M10 2C10 2 6 6 6 10C6 12.2091 7.79086 14 10 14C12.2091 14 14 12.2091 14 10C14 6 10 2 10 2Z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                  <path d="M2 14V16C2 17.1046 2.89543 18 4 18H16C17.1046 18 18 17.1046 18 16V14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  <path d="M10 10V17M10 17L7 14M10 17L13 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <rect x="3" y="2" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                  <path d="M7 8L10 11L13 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M10 4V11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  <path d="M3 16H17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  <path d="M8 16V18H12V16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
             )}
