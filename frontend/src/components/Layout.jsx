@@ -92,15 +92,37 @@ export default function Layout() {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
+    if (!token) return;
+
     const baseURL = (process.env.REACT_APP_API_URL || 'http://localhost:4000/api');
-    const es = new EventSource(`${baseURL}/notifications/stream?token=${token}`);
-    es.onmessage = (e) => {
-      try { setUnreadCount(JSON.parse(e.data).count); } catch {}
+    let es = null;
+    let fallbackInterval = null;
+
+    const connectSSE = () => {
+      es = new EventSource(`${baseURL}/notifications/stream?token=${token}`);
+      es.onmessage = (e) => {
+        try { setUnreadCount(JSON.parse(e.data).count); } catch {}
+      };
+      es.onerror = () => {
+        // SSE 실패 시 닫고 폴링으로 폴백
+        es.close();
+        es = null;
+        if (!fallbackInterval) {
+          fallbackInterval = setInterval(() => {
+            api.get('/notifications/unread-count')
+              .then(res => setUnreadCount(res.data.count))
+              .catch(() => {});
+          }, 30000);
+        }
+      };
     };
-    es.onerror = () => {
-      // 연결 끊기면 브라우저가 자동 재연결
+
+    connectSSE();
+
+    return () => {
+      if (es) es.close();
+      if (fallbackInterval) clearInterval(fallbackInterval);
     };
-    return () => es.close();
   }, []);
 
   const handleLogout = () => { logout(); navigate('/login'); };
