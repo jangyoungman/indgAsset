@@ -65,8 +65,8 @@
       <li><a href="#asset-edit">자산 수정</a></li>
       <li><a href="#asset-bulk">자산 일괄 등록</a></li>
       <li><a href="#assignment">대여 / 반납</a></li>
-      <li><a href="#user-mgmt">사용자 관리</a></li>
       <li><a href="#system-mgmt">시스템 관리</a></li>
+      <li><a href="#vpn">VPN 인증서</a></li>
       <li><a href="#faq">FAQ</a></li>
       <li><a href="#contact">문의</a></li>
     </ol>
@@ -309,63 +309,124 @@
   <!-- 11 -->
   <div class="section" id="assignment">
     <h2>11. 대여 / 반납 <span class="role-badge role-all">전체</span></h2>
-    <p>좌측 메뉴의 <strong>"대여/반납"</strong>에서 자산의 대여 및 반납 이력을 관리합니다.</p>
+    <p>좌측 메뉴의 <strong>"대여/반납"</strong>을 클릭하면 3개 탭으로 구성된 화면이 나타납니다.</p>
 
-    <h3>대여</h3>
+    <h3>내 대여 현황 탭</h3>
+    <p>본인의 대여 요청/진행/반납 이력을 확인할 수 있습니다.</p>
+    <ul>
+      <li><strong>상태 필터</strong> — 요청중 / 승인 / 사용중 / 반납완료 / 거절</li>
+      <li><strong>반납</strong> — "사용중" 상태의 자산에서 반납 버튼 클릭 → 반납 메모 입력 → 처리</li>
+    </ul>
+
+    <h3>대여 요청 탭</h3>
+    <p>"사용 가능" 상태인 자산 목록이 표시됩니다.</p>
     <div class="step">
       <div class="step-num">1</div>
-      <div class="step-content">자산 상세 화면에서 <strong>"대여"</strong> 버튼 클릭</div>
+      <div class="step-content">대여할 자산의 <strong>"대여 요청"</strong> 버튼 클릭</div>
     </div>
     <div class="step">
       <div class="step-num">2</div>
-      <div class="step-content">대여자(사용자) 선택 후 확인</div>
+      <div class="step-content"><strong>반납 예정일</strong> 선택 및 요청 메모 입력</div>
     </div>
-    <p>대여 시 자산 상태가 <strong>"사용 중"</strong>으로 자동 변경됩니다.</p>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content"><strong>"대여 요청"</strong> 버튼 클릭</div>
+    </div>
+    <p>요청이 접수되면 관리자에게 이메일이 발송됩니다. 이미 요청 중인 자산은 <strong>"요청중"</strong> 뱃지가 표시됩니다.</p>
 
-    <h3>반납</h3>
+    <h3>승인 대기 탭 <span class="role-badge role-manager">매니저 이상</span></h3>
+    <p>대여 요청 건을 승인 또는 거절합니다.</p>
     <div class="step">
       <div class="step-num">1</div>
-      <div class="step-content">자산 상세 화면에서 <strong>"반납"</strong> 버튼 클릭</div>
+      <div class="step-content">요청 건의 <strong>"승인"</strong> 또는 <strong>"거절"</strong> 버튼 클릭</div>
     </div>
-    <p>반납 시 자산 상태가 <strong>"사용 가능"</strong>으로 자동 변경됩니다.</p>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">응답 메모 입력 후 확인</div>
+    </div>
+    <p>승인/거절 시 요청자에게 이메일과 알림이 발송됩니다. 승인 시 자산 상태가 자동으로 <strong>"사용 중"</strong>으로 변경됩니다.</p>
   </div>
 
   <!-- 12 -->
-  <div class="section" id="user-mgmt">
-    <h2>12. 사용자 관리 <span class="role-badge role-admin">관리자</span></h2>
-    <p>좌측 메뉴의 <strong>"사용자 관리"</strong>에서 시스템 사용자를 관리합니다.</p>
-    <ul>
-      <li><strong>사용자 목록</strong> — 전체 사용자 조회</li>
-      <li><strong>역할 변경</strong> — 관리자 / 매니저 / 일반 사용자 권한 설정</li>
-      <li><strong>계정 잠금 해제</strong> — 로그인 실패로 잠긴 계정 해제</li>
-      <li><strong>비밀번호 초기화</strong> — 사용자 비밀번호 재설정</li>
-    </ul>
-  </div>
-
-  <!-- 13 -->
   <div class="section" id="system-mgmt">
-    <h2>13. 시스템 관리 <span class="role-badge role-admin">관리자</span></h2>
+    <h2>12. 시스템 관리 <span class="role-badge role-admin">관리자</span></h2>
+    <p>좌측 메뉴의 <strong>"시스템 관리"</strong>를 클릭하면 하위 메뉴가 펼쳐집니다.</p>
+
+    <h3>사용자 관리</h3>
+    <p>시스템 관리 → <strong>"사용자 관리"</strong></p>
+    <ul>
+      <li><strong>사용자 목록</strong> — 전체 사용자 조회 (이름, 이메일, 역할, 부서, 상태)</li>
+      <li><strong>사용자 등록</strong> — 이름, 이메일, 비밀번호, 역할, 부서 입력</li>
+      <li><strong>사용자 수정</strong> — 이름, 역할, 부서, 연락처 변경</li>
+      <li><strong>역할 변경</strong> — 관리자 / 매니저 / 일반 사용자</li>
+      <li><strong>활성화/비활성화</strong> — 계정 사용 중지 또는 활성화</li>
+      <li><strong>계정 잠금 해제</strong> — 로그인 실패로 잠긴 계정 해제</li>
+      <li><strong>비밀번호 초기화</strong> — 임시 비밀번호 발급 (사용자에게 전달)</li>
+      <li><strong>VPN 인증서</strong> — VPN+ (생성) / VPN🔑 (조회/다운로드/삭제)</li>
+    </ul>
+
+    <h3>이메일 수신 설정 (사용자 수정 시)</h3>
+    <table>
+      <tr><th>항목</th><th>설명</th></tr>
+      <tr><td>홈페이지 관리자</td><td>홈페이지 관리 권한 부여</td></tr>
+      <tr><td>홈페이지 문의 이메일 수신</td><td>홈페이지 문의 접수 시 이메일 수신</td></tr>
+      <tr><td>자산 대여 요청 이메일 수신</td><td>자산 대여 요청 시 이메일 수신</td></tr>
+    </table>
 
     <h3>공통코드 관리</h3>
-    <p>좌측 메뉴 → 시스템 관리 → <strong>"공통코드 관리"</strong></p>
-    <p>자산 상태, 카테고리 등 시스템에서 사용하는 코드값을 관리합니다.</p>
+    <p>시스템 관리 → <strong>"공통코드 관리"</strong></p>
+    <p>자산 상태, 역할 등 시스템에서 사용하는 코드값을 관리합니다.</p>
     <ul>
       <li><strong>ASSET_STATUS</strong> — 자산 상태 (사용 가능, 사용 중, 정비 중, 폐기)</li>
       <li>코드 추가/수정/순서변경/활성화/비활성화 가능</li>
     </ul>
 
     <h3>부서 관리</h3>
-    <p>좌측 메뉴 → 시스템 관리 → <strong>"부서 관리"</strong></p>
-    <p>부서 추가, 수정, 삭제를 관리합니다.</p>
+    <p>시스템 관리 → <strong>"부서 관리"</strong></p>
+    <p>부서 추가 및 수정을 관리합니다.</p>
+  </div>
+
+  <!-- 13 -->
+  <div class="section" id="vpn">
+    <h2>13. VPN 인증서 <span class="role-badge role-all">전체</span></h2>
+    <p>WireGuard VPN 인증서를 다운로드하여 외부에서 사내 네트워크에 접속할 수 있습니다.</p>
+
+    <h3>본인 VPN 인증서 다운로드</h3>
+    <p>화면 상단 헤더의 <strong>VPN 다운로드 아이콘</strong>을 클릭하면 본인의 VPN 설정 파일(.conf)이 다운로드됩니다.</p>
+    <div class="info"><strong>참고:</strong> VPN 인증서가 생성되지 않은 경우 아이콘이 표시되지 않습니다. 관리자에게 생성을 요청하세요.</div>
+
+    <h3>VPN 설정 방법</h3>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">WireGuard 앱 설치 (Windows / Mac / iOS / Android)</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">다운로드 받은 .conf 파일을 WireGuard 앱에서 <strong>Import</strong></div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">터널을 <strong>활성화</strong>하면 사내 네트워크에 접속됩니다</div>
+    </div>
+
+    <h3>VPN 인증서 관리 <span class="role-badge role-admin">관리자</span></h3>
+    <p>시스템 관리 → 사용자 관리에서 각 사용자 옆의 VPN 버튼으로 관리합니다.</p>
     <table>
-      <tr><th>현재 부서</th></tr>
-      <tr><td>IT팀, 경영지원팀, 개발팀, 마케팅팀, 인사팀</td></tr>
+      <tr><th>버튼</th><th>동작</th></tr>
+      <tr><td>VPN+</td><td>인증서 생성 (생성 후 WireGuard 서버에 피어 추가 필요)</td></tr>
+      <tr><td>VPN🔑</td><td>인증서 조회, 설정파일 다운로드, 삭제</td></tr>
     </table>
   </div>
 
   <!-- 14 -->
   <div class="section" id="faq">
     <h2>14. FAQ</h2>
+
+    <h3>Q. VPN 다운로드 아이콘이 보이지 않습니다.</h3>
+    <p>관리자가 VPN 인증서를 아직 생성하지 않은 경우입니다. 관리자에게 요청하세요.</p>
+
+    <h3>Q. 대여 요청이 안 됩니다.</h3>
+    <p>"사용 가능" 상태의 자산만 대여 요청이 가능합니다. 이미 요청 중인 자산은 "요청중" 뱃지가 표시됩니다.</p>
 
     <h3>Q. 로그인이 안 됩니다.</h3>
     <p>이메일 주소와 비밀번호를 확인하세요. 5회 실패 시 계정이 잠기며, 관리자에게 해제를 요청해야 합니다.</p>
@@ -395,6 +456,7 @@
   <!-- 15 -->
   <div class="section" id="contact">
     <h2>15. 문의</h2>
+
     <table>
       <tr><th>구분</th><th>연락처</th></tr>
       <tr><td>시스템 관리자</td><td>장영만 (gellotin@indg.co.kr)</td></tr>
@@ -405,7 +467,7 @@
 </div>
 
 <div class="footer">
-  INNODIGM | Asset Manager 사용 매뉴얼 | 2026-04-06<br>
+  INNODIGM | Asset Manager 사용 매뉴얼 | 2026-04-08<br>
   https://asset.indg.co.kr
 </div>
 
