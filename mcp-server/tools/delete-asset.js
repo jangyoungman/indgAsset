@@ -1,10 +1,11 @@
 import { z } from 'zod';
 import { getPool } from '../db.js';
+import { checkPermission, getCurrentUser } from '../auth.js';
 
 export function registerDeleteAsset(server) {
   server.registerTool('delete_asset', {
     title: '자산 삭제',
-    description: '자산을 소프트 삭제합니다. disposed 상태인 자산만 삭제할 수 있습니다.',
+    description: '자산을 소프트 삭제합니다. disposed 상태인 자산만 삭제할 수 있습니다. (admin 권한 필요)',
     inputSchema: z.object({
       id: z.number().int().optional().describe('자산 ID'),
       asset_code: z.string().optional().describe('자산 코드'),
@@ -13,6 +14,10 @@ export function registerDeleteAsset(server) {
       message: 'id 또는 asset_code 중 하나는 필수입니다.',
     }),
   }, async (args) => {
+    // 권한 체크: admin만 자산 삭제 가능
+    const denied = await checkPermission(['admin']);
+    if (denied) return denied;
+
     const pool = getPool();
     const conn = await pool.getConnection();
     try {
@@ -47,7 +52,7 @@ export function registerDeleteAsset(server) {
       await conn.query("UPDATE assets SET status = 'deleted' WHERE id = ?", [asset.id]);
 
       // Log with asset snapshot
-      const userId = Number(process.env.MCP_USER_ID) || 0;
+      const userId = getCurrentUser()?.id || 0;
       const snapshot = { ...asset };
       delete snapshot.created_at;
       delete snapshot.updated_at;

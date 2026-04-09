@@ -80,12 +80,12 @@ export default function AssetList() {
 
   const handleBulkDelete = async () => {
     if (selected.size === 0) return;
-    if (!window.confirm(`선택한 ${selected.size}건의 자산을 폐기 처리하시겠습니까?`)) return;
+    if (!window.confirm(`선택한 ${selected.size}건의 자산을 완전 삭제하시겠습니까?\n(폐기 상태인 자산만 삭제됩니다. 이 작업은 되돌릴 수 없습니다.)`)) return;
 
     setDeleting(true);
     try {
       await api.delete('/assets/bulk', { data: { ids: [...selected] } });
-      setFilters(f => ({ ...f })); // 목록 새로고침
+      setFilters(f => ({ ...f, page: 1 })); // 삭제 후 1페이지로 이동하여 새로고침
     } catch (err) {
       alert(err.response?.data?.error || '삭제 중 오류가 발생했습니다.');
     } finally {

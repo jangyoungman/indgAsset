@@ -68,6 +68,7 @@ CREATE TABLE assets (
   assigned_to     INT           NULL,                   -- 현재 사용자
   image_url       VARCHAR(500)  NULL,
   notes           TEXT          NULL,
+  created_via     ENUM('web','mcp') DEFAULT 'web',         -- 등록 경로 (웹/MCP)
   created_at      TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
   updated_at      TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (category_id)   REFERENCES asset_categories(id) ON DELETE SET NULL,

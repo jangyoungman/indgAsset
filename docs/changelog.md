@@ -1,5 +1,40 @@
 # 자산관리 시스템 변경 이력
 
+## 2026-04-09
+
+### 자산 등록 경로 추적 (created_via)
+
+자산이 웹 화면에서 등록되었는지, MCP(AI)를 통해 등록되었는지 구분할 수 있도록 `created_via` 컬럼을 추가하였습니다.
+
+**DB 변경:**
+
+```sql
+ALTER TABLE assets ADD COLUMN created_via ENUM('web','mcp') DEFAULT 'web' AFTER notes;
+```
+
+- 기존 자산은 모두 기본값 `web`으로 설정
+- 웹 화면에서 등록 시 `web`, MCP 서버를 통해 등록 시 `mcp` 자동 기록
+
+**자연어 검색 지원:**
+
+AI 자연어 검색에서 등록 경로 필터링을 지원합니다.
+
+| 예시 입력 | 생성되는 조건 |
+|-----------|---------------|
+| "MCP로 등록한 자산" | created_via = 'mcp' |
+| "웹에서 등록한 노트북" | created_via = 'web' AND category_id = ? |
+
+**변경 파일:**
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| backend/config/schema.sql | assets 테이블에 `created_via ENUM('web','mcp')` 컬럼 추가 |
+| backend/routes/assets.js | 단건/일괄 등록 시 `created_via = 'web'` 명시, AI 검색 프롬프트에 created_via 필터 추가 |
+| mcp-server/tools/create-asset.js | INSERT 시 `created_via = 'mcp'` 설정 |
+| EC2 DB | ALTER TABLE 실행 완료 |
+
+---
+
 ## 2026-04-06
 
 ### 모바일 UI 개선

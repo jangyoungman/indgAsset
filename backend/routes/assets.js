@@ -72,6 +72,7 @@ Available filters:
 - purchase_after: purchased after this date (YYYY-MM-DD)
 - purchase_before: purchased before this date (YYYY-MM-DD)
 - warranty_before: warranty expires before this date (YYYY-MM-DD)
+- created_via: one of [web, mcp] — registration source ("MCP로 등록", "MCP", "API로 등록" → "mcp", "웹에서 등록", "화면에서 등록" → "web")
 
 Today is ${new Date().toISOString().split('T')[0]}.
 "올해" means year ${new Date().getFullYear()}.
@@ -152,6 +153,7 @@ router.post('/search', authenticate, async (req, res) => {
       if (ai.purchase_after) { sqlQuery += ' AND a.purchase_date >= ?'; params.push(ai.purchase_after); filters.purchase_after = ai.purchase_after; }
       if (ai.purchase_before) { sqlQuery += ' AND a.purchase_date <= ?'; params.push(ai.purchase_before); filters.purchase_before = ai.purchase_before; }
       if (ai.warranty_before) { sqlQuery += ' AND a.warranty_expiry <= ?'; params.push(ai.warranty_before); filters.warranty_before = ai.warranty_before; }
+      if (ai.created_via) { sqlQuery += ' AND a.created_via = ?'; params.push(ai.created_via); filters.created_via = ai.created_via; }
       filters._ai = true;
     } else {
       // --- 폴백: 키워드 파싱 ---
@@ -294,8 +296,8 @@ router.post('/', authenticate, isManagerOrAdmin, async (req, res) => {
     const [result] = await conn.query(
       `INSERT INTO assets
        (asset_code, name, category_id, description, serial_number, mac_address, manufacturer, model,
-        purchase_date, purchase_cost, warranty_expiry, location, department_id, assigned_to, status, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        purchase_date, purchase_cost, warranty_expiry, location, department_id, assigned_to, status, notes, created_via)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'web')`,
       [asset_code, name, category_id, description, serial_number, mac_address, manufacturer, model,
        purchase_date, purchase_cost, warranty_expiry, location, department_id, assigned_to || null, status, notes]
     );
@@ -434,8 +436,8 @@ router.post('/bulk', authenticate, authorize('admin'), async (req, res) => {
       const [result] = await conn.query(
         `INSERT INTO assets
          (asset_code, name, category_id, description, serial_number, mac_address, manufacturer, model,
-          purchase_date, purchase_cost, warranty_expiry, location, department_id, assigned_to, status, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          purchase_date, purchase_cost, warranty_expiry, location, department_id, assigned_to, status, notes, created_via)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'web')`,
         [asset_code, asset.name, category_id, asset.description || null,
          asset.serial_number || null, asset.mac_address || null,
          asset.manufacturer || null, asset.model || null,
@@ -508,7 +510,7 @@ router.put('/:id', authenticate, isManagerOrAdmin, async (req, res) => {
   }
 });
 
-// 자산 일괄 삭제 (관리자 전용 - disposed 처리) — /:id 보다 먼저 정의해야 함
+// 자산 일괄 삭제 (관리자 전용 - disposed 상태 자산을 DB에서 실제 삭제) — /:id 보다 먼저 정의해야 함
 router.delete('/bulk', authenticate, authorize('admin'), async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -520,17 +522,26 @@ router.delete('/bulk', authenticate, authorize('admin'), async (req, res) => {
     await conn.beginTransaction();
 
     const placeholders = ids.map(() => '?').join(',');
-    await conn.query(`UPDATE assets SET status = 'disposed' WHERE id IN (${placeholders})`, ids);
 
-    for (const id of ids) {
-      await conn.query(
-        'INSERT INTO asset_logs (asset_id, user_id, action, details) VALUES (?, ?, ?, ?)',
-        [id, req.user.id, 'disposed', JSON.stringify({ bulk_dispose: true })]
-      );
+    // disposed 상태인 자산만 실제 삭제 대상으로 필터링
+    const [disposedAssets] = await conn.query(
+      `SELECT id FROM assets WHERE id IN (${placeholders}) AND status = 'disposed'`,
+      ids
+    );
+    const disposedIds = disposedAssets.map(a => a.id);
+
+    if (disposedIds.length === 0) {
+      await conn.rollback();
+      return res.status(400).json({ error: '폐기 상태인 자산만 삭제할 수 있습니다.' });
     }
 
+    const disposedPlaceholders = disposedIds.map(() => '?').join(',');
+
+    // asset_logs, asset_assignments는 ON DELETE CASCADE로 자동 삭제됨
+    await conn.query(`DELETE FROM assets WHERE id IN (${disposedPlaceholders})`, disposedIds);
+
     await conn.commit();
-    res.json({ message: `${ids.length}건의 자산이 폐기 처리되었습니다.` });
+    res.json({ message: `${disposedIds.length}건의 자산이 완전 삭제되었습니다.` });
   } catch (err) {
     await conn.rollback();
     console.error('Bulk delete error:', err);
@@ -540,20 +551,23 @@ router.delete('/bulk', authenticate, authorize('admin'), async (req, res) => {
   }
 });
 
-// 자산 삭제 (관리자 전용 - 실제로는 disposed 처리)
+// 자산 삭제 (관리자 전용 - disposed 상태 자산을 DB에서 실제 삭제)
 router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    await conn.beginTransaction();
-    await conn.query("UPDATE assets SET status = 'disposed' WHERE id = ?", [req.params.id]);
-    await conn.query(
-      'INSERT INTO asset_logs (asset_id, user_id, action, details) VALUES (?, ?, ?, ?)',
-      [req.params.id, req.user.id, 'disposed', JSON.stringify({ reason: req.body.reason })]
-    );
-    await conn.commit();
-    res.json({ message: '자산이 폐기 처리되었습니다.' });
+    // disposed 상태인지 확인
+    const [rows] = await conn.query("SELECT id, status FROM assets WHERE id = ?", [req.params.id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: '자산을 찾을 수 없습니다.' });
+    }
+    if (rows[0].status !== 'disposed') {
+      return res.status(400).json({ error: '폐기 상태인 자산만 삭제할 수 있습니다.' });
+    }
+
+    // asset_logs, asset_assignments는 ON DELETE CASCADE로 자동 삭제됨
+    await conn.query("DELETE FROM assets WHERE id = ?", [req.params.id]);
+    res.json({ message: '자산이 완전 삭제되었습니다.' });
   } catch (err) {
-    await conn.rollback();
     res.status(500).json({ error: '서버 오류가 발생했습니다.' });
   } finally {
     conn.release();
