@@ -289,3 +289,49 @@ indgAsset/
 
 ### 최종 접속 주소
 - **https://asset.indg.co.kr**
+
+---
+
+## 14. MCP 자산관리 서버
+
+### 개요
+Claude Code에서 자산관리 시스템에 직접 접근할 수 있는 MCP(Model Context Protocol) 서버.
+
+### 구성
+- 프로젝트: `indgAsset/mcp-server/`
+- 통신: stdio (로컬 실행)
+- DB 접속: SSH 터널 → EC2 MySQL (포트 자동 할당)
+- 인증: 세션 기반 로그인 (user_management.users 테이블, bcryptjs)
+
+### 도구 목록
+| 도구 | 설명 | 권한 |
+|------|------|------|
+| login | 로그인 | - |
+| whoami | 현재 사용자 확인 | - |
+| logout | 로그아웃 | - |
+| list_assets | 자산 목록 조회 | 모든 사용자 |
+| get_asset | 자산 상세 조회 | 모든 사용자 |
+| create_asset | 자산 등록 | admin, manager |
+| update_asset | 자산 수정 | admin, manager |
+| change_status | 상태 변경 | admin, manager |
+| delete_asset | 자산 삭제 | admin |
+| get_asset_logs | 이력 조회 | 모든 사용자 |
+
+### 등록 경로 추적 (created_via)
+- assets 테이블에 `created_via ENUM('web','mcp')` 컬럼
+- 웹 등록 시 `web`, MCP 등록 시 `mcp` 자동 기록
+- AI 자연어 검색에서 등록 경로 필터링 지원
+
+### 향후 계획: 원격 MCP 서버
+현재는 로컬 stdio 방식이라 각 개인이 SSH 키, DB 접속 정보를 보유해야 하므로 보안상 부적절.
+회사 구성원에게 배포 시 EC2에 원격 MCP 서버(SSE/Streamable HTTP)로 전환 예정.
+
+**원격 구성 시 장점:**
+- DB 접속 정보/SSH 키 배포 불필요 (서버가 직접 DB 접속)
+- 각 개인은 MCP 설정에 URL만 등록하면 사용 가능
+- 다중 세션 포트 충돌 없음
+- 로그인 도구로 각자 본인 계정 사용
+
+```
+각 개인 Claude Code → HTTPS → EC2 MCP 서버 → DB (로컬 접속)
+```
