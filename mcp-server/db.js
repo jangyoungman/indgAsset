@@ -15,7 +15,6 @@ export async function initDB() {
     privateKey: readFileSync(process.env.SSH_KEY_PATH),
   };
 
-  const tunnelPort = Number(process.env.SSH_TUNNEL_PORT) || 33060;
   const dbPort = Number(process.env.DB_PORT) || 3306;
 
   return new Promise((resolve, reject) => {
@@ -35,11 +34,13 @@ export async function initDB() {
         );
       });
 
-      localServer.listen(tunnelPort, '127.0.0.1', async () => {
+      // 포트 0 = OS가 빈 포트 자동 할당 (다중 세션 충돌 방지)
+      localServer.listen(0, '127.0.0.1', async () => {
+        const assignedPort = localServer.address().port;
         try {
           pool = mysql.createPool({
             host: '127.0.0.1',
-            port: tunnelPort,
+            port: assignedPort,
             user: process.env.DB_USER,
             password: process.env.DB_PASSWORD,
             database: process.env.DB_NAME,
