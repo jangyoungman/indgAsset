@@ -63,7 +63,7 @@ CREATE TABLE assets (
   purchase_cost   DECIMAL(15,2) NULL,
   warranty_expiry DATE          NULL,
   location        VARCHAR(200)  NULL,
-  status          ENUM('available','in_use','maintenance','disposed') DEFAULT 'available',
+  status          ENUM('available','in_use','maintenance','disposed','deleted') DEFAULT 'available',
   department_id   INT           NULL,
   assigned_to     INT           NULL,                   -- 현재 사용자
   image_url       VARCHAR(500)  NULL,
