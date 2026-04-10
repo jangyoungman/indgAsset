@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLookup } from '../hooks/useLookup';
@@ -17,6 +17,7 @@ export default function AssetList() {
   const [sort, setSort] = useState({ key: '', dir: 'asc' });
   const [selected, setSelected] = useState(new Set());
   const [deleting, setDeleting] = useState(false);
+  const navigate = useNavigate();
 
   const handleSort = (key) => {
     setSort(prev => {
@@ -93,6 +94,11 @@ export default function AssetList() {
     }
   };
 
+  const handleLabelPrint = () => {
+    if (selected.size === 0) return;
+    navigate(`/assets/label-print?ids=${[...selected].join(',')}`);
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
     setFilters(f => ({ ...f, search: searchInput, page: 1 }));
@@ -104,6 +110,15 @@ export default function AssetList() {
         <h1 className="text-xl font-semibold text-gray-900">자산 목록</h1>
         {isManagerOrAdmin && (
           <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+            {isAdmin && (
+              <button
+                onClick={handleLabelPrint}
+                disabled={selected.size === 0}
+                className="hidden lg:inline-flex bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                스티커 출력{selected.size > 0 ? ` (${selected.size})` : ''}
+              </button>
+            )}
             {isAdmin && (
               <button
                 onClick={handleBulkDelete}
