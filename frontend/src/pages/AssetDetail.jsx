@@ -96,6 +96,12 @@ export default function AssetDetail() {
               {getCodeName('ASSET_STATUS', asset.status)}
             </span>
           )}
+          {isAdmin && (
+            <Link to={`/assets/label-print?ids=${id}`}
+              className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition">
+              스티커 출력
+            </Link>
+          )}
           {isManagerOrAdmin && (
             <Link to={`/assets/${id}/edit`}
               className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
