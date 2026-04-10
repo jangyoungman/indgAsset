@@ -335,3 +335,34 @@ Claude Code에서 자산관리 시스템에 직접 접근할 수 있는 MCP(Mode
 ```
 각 개인 Claude Code → HTTPS → EC2 MCP 서버 → DB (로컬 접속)
 ```
+
+---
+
+## 15. 자산 스티커 출력
+
+### 개요
+자산 목록/상세에서 선택한 자산의 스티커를 A4 라벨지에 인쇄하는 기능. 기존 수작업(엑셀) 스티커를 시스템으로 대체.
+
+### 스티커 레이아웃
+- 상단: 회사명(INNODIGM) + 담당자
+- 하단: 바코드(Code 128) + 자산코드
+- 크기: 63.5mm x 38.1mm, 라벨 간격 2mm
+- 용지: A4 라벨지 3x7 = 21매/장 (Avery L7160 호환)
+
+### 진입점
+- 자산 목록: 체크박스 선택 → "스티커 출력" 버튼 (admin 전용)
+- 자산 상세: "스티커 출력" 버튼 (admin 전용)
+
+### 기술
+- JsBarcode (Code 128, 프론트엔드 SVG 렌더링)
+- CSS `@media print` + `@page { size: A4 }` 로 인쇄 레이아웃 구성
+- 21매 초과 시 자동 페이지 분할
+
+### 변경 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `frontend/src/pages/AssetLabelPrint.jsx` | 신규 — 라벨 출력 페이지 |
+| `frontend/src/App.jsx` | `/assets/label-print` 라우트 추가 |
+| `frontend/src/pages/AssetList.jsx` | "스티커 출력" 버튼 추가 |
+| `frontend/src/pages/AssetDetail.jsx` | "스티커 출력" 버튼 추가 |
+| `frontend/package.json` | jsbarcode 패키지 추가 |
