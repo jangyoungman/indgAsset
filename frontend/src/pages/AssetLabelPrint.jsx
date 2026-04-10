@@ -54,7 +54,7 @@ export default function AssetLabelPrint() {
         setError('자산 정보를 불러오는데 실패했습니다.');
       })
       .finally(() => setLoading(false));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line
 
   const handlePrint = useCallback(() => {
     window.print();
