@@ -1,5 +1,30 @@
 # 자산관리 시스템 변경 이력
 
+## 2026-04-10
+
+### 자산 스티커 출력 기능
+
+자산 목록/상세에서 선택한 자산의 스티커를 A4 라벨지(3x7, 21매/장)에 인쇄하는 기능.
+
+**스티커 레이아웃:**
+- 상단: 회사명(INNODIGM) + 담당자
+- 하단: 바코드(Code 128) + 자산코드
+- 크기: 63.5mm x 38.1mm (Avery L7160 호환)
+
+**변경 파일:**
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| frontend/src/pages/AssetLabelPrint.jsx | 신규 — 라벨 출력 페이지 (바코드, A4 레이아웃, 인쇄) |
+| frontend/src/App.jsx | /assets/label-print 라우트 추가 (admin 전용) |
+| frontend/src/pages/AssetList.jsx | 선택 자산 "스티커 출력" 버튼 추가 (admin) |
+| frontend/src/pages/AssetDetail.jsx | 개별 자산 "스티커 출력" 버튼 추가 (admin) |
+| frontend/package.json | jsbarcode 패키지 추가 |
+
+**권한:** admin 전용
+
+---
+
 ## 2026-04-09
 
 ### 자산 등록 경로 추적 (created_via)
