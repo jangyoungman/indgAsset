@@ -12,6 +12,7 @@ import UserList from './pages/UserList';
 import CodeManagement from './pages/CodeManagement';
 import DepartmentManagement from './pages/DepartmentManagement';
 import AssetSearch from './pages/AssetSearch';
+import AssetLabelPrint from './pages/AssetLabelPrint';
 import AssignmentList from './pages/AssignmentList';
 
 function PrivateRoute({ children, roles }) {
@@ -48,6 +49,7 @@ export default function App() {
               </PrivateRoute>
             } />
             <Route path="assets/bulk-upload" element={<PrivateRoute roles={['admin']}><AssetBulkUpload /></PrivateRoute>} />
+            <Route path="assets/label-print" element={<PrivateRoute roles={['admin']}><AssetLabelPrint /></PrivateRoute>} />
             <Route path="assets/:id" element={<AssetDetail />} />
             <Route path="assets/:id/edit" element={
               <PrivateRoute roles={['admin', 'manager']}>
