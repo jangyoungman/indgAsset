@@ -139,7 +139,7 @@ export default function AssetLabelPrint() {
               display: 'grid',
               gridTemplateColumns: 'repeat(3, 63.5mm)',
               gridTemplateRows: `repeat(7, 38.1mm)`,
-              gap: 0,
+              gap: '2mm',
             }}
           >
             {previewAssets.map(asset => (
@@ -171,7 +171,7 @@ export default function AssetLabelPrint() {
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, 63.5mm)',
                 gridTemplateRows: 'repeat(7, 38.1mm)',
-                gap: 0,
+                gap: '2mm',
               }}
             >
               {pageAssets.map(asset => (
