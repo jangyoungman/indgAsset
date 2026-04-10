@@ -6,3 +6,4 @@ build/
 *.pem
 *.ppk
 *.ppk:Zone.Identifier
+download/
