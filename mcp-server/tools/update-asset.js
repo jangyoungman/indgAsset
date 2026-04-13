@@ -1,12 +1,13 @@
 import { z } from 'zod';
 import { getPool } from '../db.js';
-import { checkPermission, getCurrentUser } from '../auth.js';
+import { checkPermission } from '../auth.js';
 
 export function registerUpdateAsset(server) {
   server.registerTool('update_asset', {
     title: '자산 정보 수정',
     description: '자산의 정보를 수정합니다. 변경할 필드만 전달하면 됩니다. (admin, manager 권한 필요)',
     inputSchema: z.object({
+      token: z.string().describe('로그인 시 발급받은 JWT 토큰'),
       id: z.number().int().optional().describe('자산 ID'),
       asset_code: z.string().optional().describe('자산 코드'),
       name: z.string().optional().describe('자산명'),
@@ -25,8 +26,8 @@ export function registerUpdateAsset(server) {
     }),
   }, async (args) => {
     // 권한 체크: admin, manager만 자산 수정 가능
-    const denied = await checkPermission(['admin', 'manager']);
-    if (denied) return denied;
+    const result = checkPermission(args.token, ['admin', 'manager']);
+    if (result.content) return result;
 
     const pool = getPool();
     const conn = await pool.getConnection();
@@ -89,7 +90,7 @@ export function registerUpdateAsset(server) {
         }
       }
 
-      const userId = getCurrentUser()?.id || 0;
+      const userId = result.user.id;
       await conn.query(
         'INSERT INTO asset_logs (asset_id, user_id, action, details) VALUES (?, ?, ?, ?)',
         [asset.id, userId, 'updated', JSON.stringify({ source: 'mcp', changes })]

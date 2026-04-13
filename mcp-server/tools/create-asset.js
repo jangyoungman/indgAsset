@@ -1,12 +1,13 @@
 import { z } from 'zod';
 import { getPool } from '../db.js';
-import { checkPermission, getCurrentUser } from '../auth.js';
+import { checkPermission } from '../auth.js';
 
 export function registerCreateAsset(server) {
   server.registerTool('create_asset', {
     title: '자산 등록',
     description: '새로운 자산을 등록합니다. 자산코드는 구매연도 기준으로 자동 생성됩니다. (admin, manager 권한 필요)',
     inputSchema: z.object({
+      token: z.string().describe('로그인 시 발급받은 JWT 토큰'),
       name: z.string().describe('자산명 (필수)'),
       category: z.string().describe('카테고리명 (필수, 예: 노트북, 모니터, 사무가구, 소프트웨어, 차량, 사무기기)'),
       serial_number: z.string().optional().describe('시리얼 넘버'),
@@ -22,8 +23,8 @@ export function registerCreateAsset(server) {
     }),
   }, async (args) => {
     // 권한 체크: admin, manager만 자산 등록 가능
-    const denied = await checkPermission(['admin', 'manager']);
-    if (denied) return denied;
+    const result = checkPermission(args.token, ['admin', 'manager']);
+    if (result.content) return result;
 
     const pool = getPool();
     const conn = await pool.getConnection();
@@ -77,7 +78,7 @@ export function registerCreateAsset(server) {
       );
 
       // Log
-      const userId = getCurrentUser()?.id || 0;
+      const userId = result.user.id;
       await conn.query(
         'INSERT INTO asset_logs (asset_id, user_id, action, details) VALUES (?, ?, ?, ?)',
         [result.insertId, userId, 'created', JSON.stringify({ source: 'mcp', name: args.name, asset_code: assetCode })]

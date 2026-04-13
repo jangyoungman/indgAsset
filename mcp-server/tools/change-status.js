@@ -1,12 +1,13 @@
 import { z } from 'zod';
 import { getPool } from '../db.js';
-import { checkPermission, getCurrentUser } from '../auth.js';
+import { checkPermission } from '../auth.js';
 
 export function registerChangeStatus(server) {
   server.registerTool('change_status', {
     title: '자산 상태 변경',
     description: '자산의 상태를 변경합니다. (available, in_use, maintenance, disposed) (admin, manager 권한 필요)',
     inputSchema: z.object({
+      token: z.string().describe('로그인 시 발급받은 JWT 토큰'),
       id: z.number().int().optional().describe('자산 ID'),
       asset_code: z.string().optional().describe('자산 코드'),
       status: z.enum(['available', 'in_use', 'maintenance', 'disposed']).describe('변경할 상태'),
@@ -16,8 +17,8 @@ export function registerChangeStatus(server) {
     }),
   }, async (args) => {
     // 권한 체크: admin, manager만 상태 변경 가능
-    const denied = await checkPermission(['admin', 'manager']);
-    if (denied) return denied;
+    const result = checkPermission(args.token, ['admin', 'manager']);
+    if (result.content) return result;
 
     const pool = getPool();
     const conn = await pool.getConnection();
@@ -53,7 +54,7 @@ export function registerChangeStatus(server) {
       await conn.query('UPDATE assets SET status = ? WHERE id = ?', [args.status, asset.id]);
 
       const action = args.status === 'disposed' ? 'disposed' : 'updated';
-      const userId = getCurrentUser()?.id || 0;
+      const userId = result.user.id;
       await conn.query(
         'INSERT INTO asset_logs (asset_id, user_id, action, details) VALUES (?, ?, ?, ?)',
         [asset.id, userId, action, JSON.stringify({
