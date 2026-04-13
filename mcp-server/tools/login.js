@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { login, getCurrentUser, logout } from '../auth.js';
+import { login, getUserFromToken } from '../auth.js';
 
 export function registerLogin(server) {
   server.registerTool('login', {
     title: 'MCP 로그인',
-    description: '자산관리 시스템에 로그인합니다. 이메일과 비밀번호를 입력하세요. 등록/수정/삭제 등의 작업 전에 반드시 로그인이 필요합니다.',
+    description: '자산관리 시스템에 로그인합니다. 로그인 성공 시 JWT 토큰이 발급됩니다. 이후 등록/수정/삭제 작업 시 이 토큰을 token 필드에 전달하세요.',
     inputSchema: z.object({
       email: z.string().describe('사용자 이메일'),
       password: z.string().describe('비밀번호'),
@@ -22,8 +22,9 @@ export function registerLogin(server) {
       content: [{
         type: 'text',
         text: JSON.stringify({
-          message: '로그인 성공',
+          message: '로그인 성공. 아래 token을 등록/수정/삭제 작업 시 전달하세요.',
           user: result.user,
+          token: result.token,
         }, null, 2),
       }],
     };
@@ -31,31 +32,32 @@ export function registerLogin(server) {
 
   server.registerTool('whoami', {
     title: '현재 로그인 정보',
-    description: '현재 로그인된 사용자 정보를 확인합니다.',
-    inputSchema: z.object({}),
-  }, async () => {
-    const user = getCurrentUser();
+    description: '토큰으로 현재 로그인된 사용자 정보를 확인합니다.',
+    inputSchema: z.object({
+      token: z.string().describe('로그인 시 발급받은 JWT 토큰'),
+    }),
+  }, async (args) => {
+    const user = getUserFromToken(args.token);
     if (!user) {
       return {
-        content: [{ type: 'text', text: '로그인되어 있지 않습니다. login 도구로 로그인해주세요.' }],
+        content: [{ type: 'text', text: '유효하지 않은 토큰입니다. login 도구로 다시 로그인해주세요.' }],
       };
     }
     return {
       content: [{
         type: 'text',
-        text: JSON.stringify({ message: '현재 로그인 정보', user }, null, 2),
+        text: JSON.stringify({ message: '현재 로그인 정보', user: { id: user.id, email: user.email, name: user.name, role: user.role } }, null, 2),
       }],
     };
   });
 
   server.registerTool('logout', {
     title: 'MCP 로그아웃',
-    description: '현재 세션에서 로그아웃합니다.',
+    description: 'JWT 토큰 기반이므로 클라이언트에서 토큰을 폐기하면 됩니다.',
     inputSchema: z.object({}),
   }, async () => {
-    logout();
     return {
-      content: [{ type: 'text', text: '로그아웃되었습니다.' }],
+      content: [{ type: 'text', text: '로그아웃: 보유한 토큰을 폐기해주세요. (JWT 기반이므로 서버 측 세션 없음)' }],
     };
   });
 }

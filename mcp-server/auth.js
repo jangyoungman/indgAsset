@@ -1,11 +1,12 @@
 import { getPool } from './db.js';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
-// 세션 내 로그인된 사용자 정보
-let currentUser = null;
+const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
+const JWT_EXPIRES_IN = '24h';
 
 /**
- * 로그인: 이메일+비밀번호로 인증 후 세션에 사용자 저장
+ * 로그인: 이메일+비밀번호 검증 후 JWT 토큰 발급
  */
 export async function login(email, password) {
   const pool = getPool();
@@ -33,31 +34,34 @@ export async function login(email, password) {
     return { success: false, message: '비밀번호가 일치하지 않습니다.' };
   }
 
-  currentUser = { id: user.id, email: user.email, name: user.name, role: user.role };
-  return { success: true, user: currentUser };
+  const payload = { id: user.id, email: user.email, name: user.name, role: user.role };
+  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+  return { success: true, user: payload, token };
 }
 
 /**
- * 현재 로그인된 사용자 반환
+ * 토큰에서 사용자 정보 추출
  */
-export function getCurrentUser() {
-  return currentUser;
+export function getUserFromToken(token) {
+  if (!token) return null;
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch {
+    return null;
+  }
 }
 
 /**
- * 로그아웃
- */
-export function logout() {
-  currentUser = null;
-}
-
-/**
- * 권한 체크 후 에러 메시지 반환 (통과 시 null)
+ * 권한 체크 (토큰 기반)
+ * @param {string} token - JWT 토큰
  * @param {string[]} allowedRoles - 허용 역할 목록
- * @returns {{ content: Array } | null} 에러 응답 또는 null
+ * @returns {{ content: Array } | { user: object }} 에러 응답 또는 { user }
  */
-export function checkPermission(allowedRoles) {
-  if (!currentUser) {
+export function checkPermission(token, allowedRoles) {
+  const user = getUserFromToken(token);
+
+  if (!user) {
     return {
       content: [{
         type: 'text',
@@ -66,14 +70,14 @@ export function checkPermission(allowedRoles) {
     };
   }
 
-  if (!allowedRoles.includes(currentUser.role)) {
+  if (!allowedRoles.includes(user.role)) {
     return {
       content: [{
         type: 'text',
-        text: `Error: 권한이 없습니다. 이 작업은 ${allowedRoles.join(', ')} 권한이 필요합니다. (현재: ${currentUser.role})`,
+        text: `Error: 권한이 없습니다. 이 작업은 ${allowedRoles.join(', ')} 권한이 필요합니다. (현재: ${user.role})`,
       }],
     };
   }
 
-  return null;
+  return { user };
 }
