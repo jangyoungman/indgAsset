@@ -1,7 +1,7 @@
 {
   "name": "indg-asset-mcp-server",
-  "version": "1.0.0",
-  "description": "MCP server for INNODIGM asset management",
+  "version": "2.0.0",
+  "description": "MCP server for INNODIGM asset management (remote)",
   "type": "module",
   "main": "index.js",
   "scripts": {
@@ -11,8 +11,9 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "bcryptjs": "^3.0.3",
     "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.14.0",
-    "ssh2": "^1.16.0",
     "zod": "^3.25.0"
   }
 }
