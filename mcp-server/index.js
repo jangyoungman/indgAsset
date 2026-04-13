@@ -74,7 +74,9 @@ try {
   process.exit(1);
 }
 
-process.on('SIGINT', async () => {
-  await closeDB();
-  process.exit(0);
-});
+for (const sig of ['SIGINT', 'SIGTERM']) {
+  process.on(sig, async () => {
+    await closeDB();
+    process.exit(0);
+  });
+}

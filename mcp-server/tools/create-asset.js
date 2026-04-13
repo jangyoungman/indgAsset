@@ -72,7 +72,7 @@ export function registerCreateAsset(server) {
       const placeholders = columns.map(() => '?').join(', ');
       const values = Object.values(fields);
 
-      const [result] = await conn.query(
+      const [insertResult] = await conn.query(
         `INSERT INTO assets (${columns.join(', ')}) VALUES (${placeholders})`,
         values
       );
@@ -81,7 +81,7 @@ export function registerCreateAsset(server) {
       const userId = result.user.id;
       await conn.query(
         'INSERT INTO asset_logs (asset_id, user_id, action, details) VALUES (?, ?, ?, ?)',
-        [result.insertId, userId, 'created', JSON.stringify({ source: 'mcp', name: args.name, asset_code: assetCode })]
+        [insertResult.insertId, userId, 'created', JSON.stringify({ source: 'mcp', name: args.name, asset_code: assetCode })]
       );
 
       await conn.commit();
@@ -91,7 +91,7 @@ export function registerCreateAsset(server) {
           type: 'text',
           text: JSON.stringify({
             message: '자산이 등록되었습니다.',
-            id: result.insertId,
+            id: insertResult.insertId,
             asset_code: assetCode,
             name: args.name,
           }, null, 2),

@@ -2,6 +2,9 @@ import { getPool } from './db.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
+if (!process.env.JWT_SECRET) {
+  console.warn('WARNING: JWT_SECRET not set, using insecure default. Set JWT_SECRET in .env for production.');
+}
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
 const JWT_EXPIRES_IN = '24h';
 
