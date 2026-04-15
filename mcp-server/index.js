@@ -2,6 +2,7 @@ import './config.js';
 import express from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { initDB, closeDB } from './db.js';
 import { registerListAssets } from './tools/list-assets.js';
 import { registerGetAsset } from './tools/get-asset.js';
@@ -43,13 +44,82 @@ function createServer() {
 const app = express();
 app.use(express.json());
 
-// Streamable HTTP transport on /mcp
+// --- Streamable HTTP transport (신규) ---
+const streamableSessions = new Map();
+
 app.post('/mcp', async (req, res) => {
-  const server = createServer();
-  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-  res.on('close', () => { transport.close(); server.close(); });
-  await server.connect(transport);
+  const sessionId = req.headers['mcp-session-id'];
+  let transport;
+
+  if (sessionId && streamableSessions.has(sessionId)) {
+    transport = streamableSessions.get(sessionId).transport;
+  } else if (!sessionId) {
+    // 새 세션 생성
+    transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    const server = createServer();
+
+    transport.onclose = () => {
+      streamableSessions.delete(transport.sessionId);
+    };
+
+    await server.connect(transport);
+    streamableSessions.set(transport.sessionId, { transport, server });
+  } else {
+    res.status(400).json({ error: 'Invalid or expired session' });
+    return;
+  }
+
   await transport.handleRequest(req, res, req.body);
+});
+
+app.get('/mcp', async (req, res) => {
+  const sessionId = req.headers['mcp-session-id'];
+  if (!sessionId || !streamableSessions.has(sessionId)) {
+    res.status(400).json({ error: 'Invalid or expired session' });
+    return;
+  }
+  const { transport } = streamableSessions.get(sessionId);
+  await transport.handleRequest(req, res);
+});
+
+app.delete('/mcp', async (req, res) => {
+  const sessionId = req.headers['mcp-session-id'];
+  if (sessionId && streamableSessions.has(sessionId)) {
+    const { transport, server } = streamableSessions.get(sessionId);
+    await transport.handleRequest(req, res, req.body);
+    streamableSessions.delete(sessionId);
+    await server.close();
+  } else {
+    res.status(400).json({ error: 'Invalid or expired session' });
+  }
+});
+
+// --- Legacy SSE transport (하위 호환) ---
+const sseSessions = new Map();
+
+app.get('/sse', async (req, res) => {
+  const transport = new SSEServerTransport('/messages', res);
+  const server = createServer();
+
+  sseSessions.set(transport.sessionId, { transport, server });
+
+  res.on('close', () => {
+    sseSessions.delete(transport.sessionId);
+    server.close();
+  });
+
+  await server.connect(transport);
+});
+
+app.post('/messages', async (req, res) => {
+  const sessionId = req.query.sessionId;
+  const session = sseSessions.get(sessionId);
+
+  if (!session) {
+    return res.status(400).json({ error: 'Invalid or expired session' });
+  }
+
+  await session.transport.handlePostMessage(req, res, req.body);
 });
 
 // Health check
@@ -61,7 +131,7 @@ try {
   await initDB();
   console.log('DB connected');
   app.listen(PORT, () => {
-    console.log(`MCP Server listening on port ${PORT}`);
+    console.log(`MCP Server listening on port ${PORT} (SSE + Streamable HTTP)`);
   });
 } catch (err) {
   console.error('Failed to start MCP server:', err.message);
